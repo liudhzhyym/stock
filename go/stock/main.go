@@ -33,6 +33,80 @@ func Usage() {
     fmt.Println("go run main.go computeAverageRandom 3")
 }
 
+// func getHtmlByStrategy (strategy,time){
+//     return file_get_contents('0629kdj.html');
+// }
+
+// func getCodeFromHtml($html)
+// {
+//     $rule = '/stockpick\/search\?tid=stockpick&qs=stockpick_diag&ts=1&w=([0-9]+)/';  
+//     preg_match_all($rule,$html,$result);  
+//     return $result[1];
+// }
+
+func getCodeByStrategy(strategyName string,time string)(ret []string){
+    strategyFile := "strategy/"+strategyName
+    buf, err := ioutil.ReadFile(strategyFile)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "read strategyFile failed: %s\n", err)
+        return
+    }
+    content := string(buf)
+    content = strings.Replace(content, "${time}", time, -1)
+    content = strings.Trim(content,"\n")
+    content = strings.Replace(content, "\n", "；", -1)
+    postData :=map[string]string{
+        "typed":"1",
+        "preParams":"",
+        "ts":"1",
+        "f":"1",
+        "qs":"1",
+        "selfsectsn":"",
+        "querytype":"",
+        "searchfilter":"",
+        "tid":"stockpick",
+        "w":content,
+    }
+    var postDataArr []string
+    for key,value := range(postData) {
+        postDataArr = append(postDataArr,key+"="+value)
+    }
+    postStr := strings.Join(postDataArr,"&")
+    fmt.Println("postData = ",postStr)
+
+    url := "http://www.iwencai.com/stockpick/search?" + postStr
+    htmlContent := getHtmlByUrl(url)
+    //fmt.Println("postData = ",postStr,htmlContent)
+
+    //$rule = '/stockpick\/search\?tid=stockpick&qs=stockpick_diag&ts=1&w=([0-9]+)/';  
+    ruleRegexp := regexp.MustCompile(`stockpick\/search\?tid=stockpick&qs=stockpick_diag&ts=1&w=([0-9]+)`)
+    matchStringArr := ruleRegexp.FindAllString(htmlContent,-1)
+
+    var codeList []string
+    for _,str := range(matchStringArr) {
+        temp := ruleRegexp.FindStringSubmatch(str)
+        code := temp[1]
+        if len(code)>0 {
+            codeList = append(codeList,code)
+        }
+    }
+    fmt.Println("codeList = ",codeList)
+    return codeList;
+
+// $urlBase = 'http://www.iwencai.com/stockpick/search';
+//     $url = $urlBase."?".implode('&',$dataArr);
+//     //echo $url."\n";
+//     // curl抓取网页
+//     $htmlContent = file_get_contents($url);
+//     //$htmlContent = getHtmlByStrategy($strategyStr,$time);
+//     $codeList = getCodeFromHtml($htmlContent);
+
+}
+
+func getStockByStrategy(strategyName string) {
+    getCodeByStrategy(strategyName,"20150701")
+}
+
 func getAllStockList() (ret []string) {
     stockListFile := "data/stock_list"
     buf, err := ioutil.ReadFile(stockListFile)
@@ -158,26 +232,26 @@ func getSortKeys(data map[string] []string) (ret []string) {
     return sortKeys
 }
 
-func checkStock(code string,time string,keepDays int) {
+func checkStock(code string,time string,keepDays int) (ret map[string]string,errInfo error) {
     var stockData map[string] []string
     retData,_,err := getStockData("sh" + code)
     if err != nil {
         retData,_,err := getStockData("sz" + code)
         if err != nil {
-            err= errors.New("stock data is null!")
-            //return
+            errInfo = errors.New("stock data is null!")
+            return
         } else {
             stockData = retData
         }
     } else {
         stockData = retData
     }
-    fmt.Println("len : ", len(stockData))
+    //fmt.Println("len : ", len(stockData))
     //对key进行排序
     sortKeys := getSortKeys(stockData)
-    fmt.Println("sortKeys 0 : ", sortKeys[0],len(sortKeys[0]))
+    //fmt.Println("sortKeys 0 : ", sortKeys[0],len(sortKeys[0]))
     if(time<sortKeys[0]) {
-        err = errors.New("there is no stock data at ["+time+"] of stock "+code)
+        errInfo = errors.New("there is no stock data at ["+time+"] of stock "+code)
         return
     }
 
@@ -193,8 +267,8 @@ func checkStock(code string,time string,keepDays int) {
     volPercent := 0.0
     maxPercent := 0.0
     minPercent := 0.0
-    result := make(map[string]string)
     index := 0
+    result := make(map[string]string)
     for _,dayTime := range(sortKeys) {
         if dayTime>=time {
             if firstDay == "" {
@@ -234,13 +308,26 @@ func checkStock(code string,time string,keepDays int) {
             }
         }
     }
+
+    startPrice,_ := strconv.ParseFloat(stockData[firstDay][1],64)
+    //价格过于小的，过于大的，都过滤掉开盘直接涨停的，开盘=收盘
+    if startPrice<3|| startPrice>300 {
+        errInfo = errors.New("startPrice is not in [3,300]")
+        return
+    }
+    if stockData[firstDay][1] == stockData[firstDay][2] {
+        errInfo = errors.New("this stock is surged limit")
+        return
+    }
+
     result["firstDay"] = firstDay
     result["lastDay"] = lastDay
     result["sellDay"] = sellDay
     result["volPercent"] = strconv.FormatFloat(volPercent, 'f', -1, 64)
     //stockData = getStockData("sh" + code)
     //fmt.Println("sortKeys: ", sortKeys)
-    fmt.Println("Split: ", result)
+    //fmt.Println("result: ", result)
+    return result,nil
 }
 
 func computeWinByRandom() {
@@ -257,10 +344,18 @@ func main() {
         case "computeWinByRandom":
             computeWinByRandom()
         case "checkStock":
-            code := flag.Arg(1);
-            time := flag.Arg(2);
-            day,_ := strconv.Atoi(flag.Arg(3));
-            checkStock(code,time,day)
+            code := flag.Arg(1)
+            time := flag.Arg(2)
+            day,_ := strconv.Atoi(flag.Arg(3))
+            result,err:=checkStock(code,time,day)
+            if err != nil {
+                fmt.Println( "checkStock stock failed ",err)
+            }
+            fmt.Println("result: ", result)
+        case "getStockByStrategy":
+            strategyName := flag.Arg(1)
+            // 获取最近一年策略锁对应的股票列表
+            getStockByStrategy(strategyName)
         default:
             Usage()
     }
