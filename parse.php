@@ -40,6 +40,9 @@ switch($command)
         $count = $argv[2];
         computeAverageRandom($count);
         break;
+    case "test":
+        test();
+        break;
     default:
         usage();
         break;  
@@ -60,6 +63,20 @@ function usage()
 }
 
 
+function test()
+{
+    //匹配
+    // $code1 = getArrayFromString(file_get_contents("data/result/kdj002-1.st/20140102"));
+    // $code2 = getArrayFromString(file_get_contents("data/result/kdj002-2.st/20140102"));
+    // $code3 = getArrayFromString(file_get_contents("data/result/kdj002-3.st/20140102"));
+    // $code = array_intersect($code1,$code2,$code3);
+    // $code = array_values($code);
+    // print_r($code);
+    //print_r($code2);
+    //print_r($code3);
+    getCodeByStrategy("kdj001.st","20140102");
+}
+
 function getHtmlByStrategy($strategy,$time)
 {
 	return file_get_contents('0629kdj.html');
@@ -70,6 +87,32 @@ function getCodeFromHtml($html)
 	$rule = '/stockpick\/search\?tid=stockpick&qs=stockpick_diag&ts=1&w=([0-9]+)/';  
     preg_match_all($rule,$html,$result);  
     return $result[1];
+}
+
+function saveBuySignal($buySignal,$nowSignal)
+{
+    $dir = "data/signal/";
+    $buySignalFile = $dir."buy";
+    $nowSignalFile = $dir."now";
+    shell_exec("mkdir -p $dir");
+    $buyArr = getArrayFromString(file_get_contents($buySignalFile));
+    $nowArr = getArrayFromString(file_get_contents($nowSignalFile));
+    foreach($buySignal as $value)
+    {
+        if(!empty($value)&&!in_array($value, $buyArr))
+        {
+            $buyArr[] = $value;
+        }
+    }
+    foreach($nowSignal as $value)
+    {
+        if(!empty($value)&&!in_array($value, $nowArr))
+        {
+            $nowArr[] = $value;
+        }
+    } 
+    file_put_contents($buySignalFile, implode("\n", $buyArr));
+    file_put_contents($nowSignalFile, implode("\n", $nowArr));
 }
 
 function getCodeByStrategy($strategyName,$time)
@@ -112,29 +155,127 @@ function getCodeByStrategy($strategyName,$time)
     //echo $url."\n";
 	// curl抓取网页
 	$htmlContent = file_get_contents($url);
+    $rule = '/"token":"([0-9a-z]+)","staticList"/';  
+    preg_match_all($rule,$htmlContent,$result);  
+    $token = $result[1][0];
+    if(empty($token))
+    {
+        echo "FAILED! Get token failed!\n";
+        return;
+    }
+    $page = 1;
+    $codeList = array();
+    $codeInfoList = array();
+    $buySignal = array();
+    $nowSignal = array();
+    $buysignalIndex = -1;
+    $zxstIndex = -1;
+    while (true) 
+    {
+        $apiUrl = "http://www.iwencai.com/stockpick/cache?token={$token}&p={$page}&perpage=30&showType=";
+        //echo $apiUrl;
+        $apiRet = file_get_contents($apiUrl);
+        $apiData = (array)json_decode($apiRet);
+        //break;
+        if(empty($apiData['result'])||$page>100)
+        {
+            break;
+        }
+        $oriIndexID = $apiData['oriIndexID'];
+        foreach($oriIndexID as $key => $value)
+        {
+            if($value == "web:buysignal")
+            {
+                $buysignalIndex = $key;
+            }
+            if($value == "web:zxst")
+            {
+                $zxstIndex = $key;
+            }
+        }
+        // print_r($oriIndexID);
+        // return;
+        $codeInfoList = array_merge($codeInfoList,$apiData['result']);
+        $page++;
+    }
+    foreach($codeInfoList as $info)
+    {
+        $str = strtolower($info[0]);
+        if(!empty($str))
+        {
+            $tempArr = explode(".", $str);
+            $code = $tempArr[1].$tempArr[0];
+            if(strpos($code, "3")==2)
+            {
+                continue;
+                // 过滤掉创业板
+            }
+
+            $codeList[] = $code;
+
+            //if(strpos(haystack, needle))
+            if($buysignalIndex>0)
+            {
+                $signArr = explode("||", $info[4]);
+                foreach($signArr as $sign)
+                {
+                    if(!empty($sign)&&$sign!="--"&&!in_array($sign, $buySignal))
+                    {
+                        $buySignal[] = $sign;
+                    }
+                }
+            }
+            if($zxstIndex>0)
+            {
+                $nowArr = explode("||", $info[5]);
+                foreach($nowArr as $sign)
+                {
+                    if(!empty($sign)&&$sign!="--"&&!in_array($sign, $nowSignal))
+                    {
+                        $nowSignal[] = $sign;
+                    }
+                }         
+            }
+            
+          
+        }
+
+    }
+    saveBuySignal($buySignal,$nowSignal);
 	//$htmlContent = getHtmlByStrategy($strategyStr,$time);
-	$codeList = getCodeFromHtml($htmlContent);
-    //print_r($codeList);
+	//$codeList = getCodeFromHtml($htmlContent);
+    //print_r($codeInfoList);
+    // print_r($buySignal);
+    // print_r($nowSignal);
 	return $codeList;
+}
+
+//获取上证指数的开盘时间序列
+function getMarketTimeList()
+{
+    $data = getStockData("sh000001");
+    $timeArr = array();
+    foreach($data as $info)
+    {
+        $timeArr[] = $info[0];
+    }
+    return $timeArr;
 }
 
 function getHistoryCodeByStrategy($strategyName)
 {
-    shell_exec("mkdir -p result/${strategyName}");
-	$days = 365;
-	for($index = 0; $index < $days ; $index++)
+    shell_exec("mkdir -p data/result/${strategyName}");
+    $list = getMarketTimeList();
+	//for($index = 0; $index < $days ; $index++)
+    foreach($list as $time)
 	{
-		$time = date("Ymd",strtotime("-${index} day"));
-        $buyDay = $index-1;
-		$buyTime = date("Ymd",strtotime("-${buyDay} day"));
-        echo "buyTime = ${buyTime}\n";
-		$timeC = date("Y年m月d日",strtotime("-${index} day"));
-		$codeList = getCodeByStrategy($strategyName,$timeC);
+        echo "time = ${time}\n";
+		$codeList = getCodeByStrategy($strategyName,$time);
 		if(!empty($codeList))
 		{
 			$str = implode("\n", $codeList);
-            $str = $str."\n";
-			file_put_contents("result/${strategyName}/${buyTime}", $str);
+            //$str = $str."\n";
+			file_put_contents("data/result/${strategyName}/${time}", $str);
 		    //break;
 		}
         $sleepTime = rand(5,10);
@@ -312,7 +453,10 @@ function checkStock($code,$time,$day)
 function getStockByStrategy($strategyName)
 {
     getHistoryCodeByStrategy($strategyName);
-//    getCodeByStrategy($strategyName,'2015年06月29日');    
+    //$list = getCodeByStrategy($strategyName,'2015年06月29日');    
+    //print_r($list);
+//    $list = getCodeByStrategy($strategyName,'20150629');    
+//    print_r($list);
 }
 
 function getArrayFromString($content,$split="\n")
