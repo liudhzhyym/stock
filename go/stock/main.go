@@ -76,7 +76,26 @@ func getCodeByStrategy(strategyName string,time string)(ret []string){
 
     url := "http://www.iwencai.com/stockpick/search?" + postStr
     htmlContent := getHtmlByUrl(url)
-    //fmt.Println("postData = ",postStr,htmlContent)
+    //获取token
+    tokenRegexp := regexp.MustCompile(`"token":"([0-9a-z]+)","staticList"`)
+    matchArr := tokenRegexp.FindAllString(htmlContent,-1)
+    temp := tokenRegexp.FindStringSubmatch(matchArr[0])
+    token := temp[1]
+    if len(token) ==0 {
+        //通过 api接口查询数据
+        return
+    }
+    fmt.Println("matchArr = ",temp)
+    apiUrl := "http://www.iwencai.com/stockpick/cache?token="+token+"&p=1&perpage=30&showType=[%22%22,%22%22,%22onTable%22,%22onTable%22,%22%22,%22%22]";
+    dataStr := getHtmlByUrl(apiUrl)
+    fmt.Println("dataStr = ",dataStr)
+    // for _,str := range(matchArr) {
+    //     temp := ruleRegexp.FindStringSubmatch(str)
+    //     code := temp[1]
+    //     if len(code)>0 {
+    //         codeList = append(codeList,code)
+    //     }    
+    // }
 
     //$rule = '/stockpick\/search\?tid=stockpick&qs=stockpick_diag&ts=1&w=([0-9]+)/';  
     ruleRegexp := regexp.MustCompile(`stockpick\/search\?tid=stockpick&qs=stockpick_diag&ts=1&w=([0-9]+)`)
