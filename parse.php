@@ -53,7 +53,7 @@ function usage()
 {
     echo "php parse.php -[h|s|c]\n";
     echo "php parse.php get_stock_data                      : get all stock data \n";
-    echo "php parse.php check_stock 300473 20150716 10      : check stock data pain \n";
+    echo "php parse.php check_stock sz300473 20150716 10      : check stock data pain \n";
     echo "php parse.php get_stock_by_strategy kdj002.st     : get_stock_by_strategy \n";
     echo "php parse.php check_income_by_strategy kdj002.st  : check_income_by_strategy \n";
     echo "php parse.php compute_win_random                  : compute_win_random \n";
@@ -62,6 +62,20 @@ function usage()
     exit(0);
 }
 
+
+function writeLog($log,$print=false)
+{
+    $logTime = date("YmdH",time());
+    $time = date("Y-m-d H:i:s",time());
+    $logStr = "${time} DEBUG $log\n";
+    $logFile = "log/stock.{$logTime}";
+    $fp = fopen($logFile, "a"); 
+    fwrite($fp,$logStr); 
+    if($print)
+    {
+        echo $logStr;
+    }
+}
 
 function test()
 {
@@ -152,7 +166,7 @@ function getCodeByStrategy($strategyName,$time)
     }
     $urlBase = 'http://www.iwencai.com/stockpick/search';
     $url = $urlBase."?".implode('&',$dataArr);
-    //echo $url."\n";
+    writeLog("url = $url ",true);
 	// curl抓取网页
 	$htmlContent = file_get_contents($url);
     $rule = '/"token":"([0-9a-z]+)","staticList"/';  
@@ -216,7 +230,7 @@ function getCodeByStrategy($strategyName,$time)
             //if(strpos(haystack, needle))
             if($buysignalIndex>0)
             {
-                $signArr = explode("||", $info[4]);
+                $signArr = explode("||", $info[$buysignalIndex]);
                 foreach($signArr as $sign)
                 {
                     if(!empty($sign)&&$sign!="--"&&!in_array($sign, $buySignal))
@@ -227,7 +241,7 @@ function getCodeByStrategy($strategyName,$time)
             }
             if($zxstIndex>0)
             {
-                $nowArr = explode("||", $info[5]);
+                $nowArr = explode("||", $info[$zxstIndex]);
                 foreach($nowArr as $sign)
                 {
                     if(!empty($sign)&&$sign!="--"&&!in_array($sign, $nowSignal))
@@ -244,7 +258,6 @@ function getCodeByStrategy($strategyName,$time)
     saveBuySignal($buySignal,$nowSignal);
 	//$htmlContent = getHtmlByStrategy($strategyStr,$time);
 	//$codeList = getCodeFromHtml($htmlContent);
-    //print_r($codeInfoList);
     // print_r($buySignal);
     // print_r($nowSignal);
 	return $codeList;
@@ -257,6 +270,10 @@ function getMarketTimeList()
     $timeArr = array();
     foreach($data as $info)
     {
+        if($info[0]<'20150615')
+        {
+            continue;
+        }
         $timeArr[] = $info[0];
     }
     return $timeArr;
@@ -269,8 +286,13 @@ function getHistoryCodeByStrategy($strategyName)
 	//for($index = 0; $index < $days ; $index++)
     foreach($list as $time)
 	{
-        echo "time = ${time}\n";
-		$codeList = getCodeByStrategy($strategyName,$time);
+        //$time = "20150805";
+        $year = substr($time,0,4);
+        $month = substr($time,4,2);
+        $day = substr($time,6,2);
+        $dayTime = "{$year}年{$month}月{$day}日";
+        writeLog("strategyName = [$strategyName], time = ${time} dayTime = ${dayTime}",true);
+		$codeList = getCodeByStrategy($strategyName,$dayTime);
 		if(!empty($codeList))
 		{
 			$str = implode("\n", $codeList);
@@ -279,7 +301,7 @@ function getHistoryCodeByStrategy($strategyName)
 		    //break;
 		}
         $sleepTime = rand(5,10);
-        sleep($sleepTime);
+        //sleep($sleepTime);
 	}
 }
 
@@ -385,13 +407,22 @@ function checkStock($code,$time,$day)
         'errorMsg' => 'ok',
         'data' => array(),
     );
-    $stock = getStockData("sz${code}"); 
-    if(empty($stock))
+    $test_re="/^[0-9]+/";
+    if(preg_match($test_re,$code)==1)
     {
-        $stock = getStockData("sh${code}"); 
+        $stock = getStockData("sz${code}");
+        if(empty($stock))
+        {
+            $stock = getStockData("sh${code}");
+        } 
     }
+    else
+    {
+        $stock = getStockData($code); 
+    }
+    
     $matchStockData = array();
-    if($stock[0][0]>$time)
+    if(empty($stock)||$stock[0][0]>$time)
     {
         return;
     }
@@ -424,12 +455,12 @@ function checkStock($code,$time,$day)
         $last = $matchStockData[$index];
         $endPrice = $last[2];
         $volPercent = round(($endPrice - $startPrice)*100/$startPrice,2);
-        echo "startPrice = $startPrice ,endPrice = $endPrice\n";
+        writeLog("code = [$code], startPrice = $startPrice ,endPrice = $endPrice");
         if($volPercent<-10)
         {
             // 当收益率≤ - 10 %时止损
-            //$volPercent = -10;
-            //break;
+            $volPercent = -10;
+            break;
         }
     }
     
@@ -445,7 +476,7 @@ function checkStock($code,$time,$day)
         'volPercent' => $volPercent,
     );
     $res['data'] = $data;
-    print_r($res);
+    writeLog("res data is [".var_export($res,true));
     //echo "vol percent of [$code] at [$time] and [$day] days is [${volPercent}%],startPrice=[$startPrice] \n";
     return $res;
 }
