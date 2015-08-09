@@ -8,7 +8,7 @@ if(empty($command))
     usage();
 }
 
-shell_exec("mkdir -p data/stock_data/");
+shell_exec("mkdir -p data/stock_data/ data/result data/income");
 
 switch($command)
 {
@@ -28,7 +28,6 @@ switch($command)
     case "check_income_by_strategy":
         $strategyName = $argv[2];
         $ret = checkIncomeByStrategy($strategyName);
-        print_r($ret);
         break;  
     case "compare":
         compare();
@@ -88,7 +87,152 @@ function test()
     // print_r($code);
     //print_r($code2);
     //print_r($code3);
-    getCodeByStrategy("kdj001.st","20140102");
+    //getCodeByStrategy("kdj001.st","20140102");
+
+    // $allStockList = getAllStockList();
+    // $shangzheng = getStockData("sh000001");
+    // $stockList = array();
+    // foreach($shangzheng as $value)
+    // {
+    //     $stockList[$value[0]] = $allStockList;
+    // }
+    // $day = 10;
+    // $startDay = '20140101';
+    // getTradingStrategy($stockList,$day,$startDay);
+
+    // test computeAverageIncomeByStrategy
+
+    // $stockList = array(
+    //     '20150624' => array('002415'),
+    //     '20150625' => array('002252'),
+    // );
+
+    //print_r($stockList);
+    // computeAverageIncomeByStrategyTest();
+    // return;
+    //$ret = getCodeByStrategy("001.st","2015年08月07日");
+    //getHistoryCodeByStrategy("001.st");
+    //print_r($ret);
+    $strategyListStr = shell_exec("cd strategy && ls 00*");
+    writeLog("get strategyList ret is [$strategyListStr]");
+    $listArr = explode("\n", $strategyListStr);
+    foreach($listArr as $index=>$fileName)
+    {
+        if(!empty($fileName))
+        {
+            getHistoryCodeByStrategy($fileName);
+            //echo $fileName."\n";
+            //file_put_contents("strategy/00${index}.st", $line);
+        }
+    }    
+    // $listStr = file_get_contents("allStrategy");
+    // $listArr = explode("\n", $listStr);
+    // foreach($listArr as $index=>$line)
+    // {
+    //     if(!empty($line))
+    //     {
+    //         file_put_contents("strategy/00${index}.st", $line);
+    //     }
+    // }
+}
+
+
+function computeAverageIncomeByStrategyTest()
+{
+
+    $randResult = array();
+    $kdjResult = array();
+
+    $day = 10;
+    // 
+    $stockList = array();
+    $allStock = getAllStockList();
+    // print_r($allStock);
+    // return;
+    //随机选股
+    writeLog("start to compute randIncome");
+    $timeSeries = getMarketTimeList();
+
+    $strategyName = 'rand.st';
+    $strategyDir = "data/result/$strategyName/";
+    //$stockList['20140122'] = $allStock;
+    //$stockList['20150513'] = $allStock;
+    //$stockList['20150709'] = $allStock;
+    foreach($timeSeries as $index=>$dayTime)
+    {
+        $stockList[$dayTime] = $allStock;
+        // if($index>1)
+        // {
+        //     break;
+        // }
+    }
+    $smallCount = 20;
+    $allaverageRet = computeAverageIncomeByStrategy($stockList,$day,$smallCount);
+    $randResult = $allaverageRet;
+    $allArr = array();
+    $smallArr = array();
+    foreach($allaverageRet['averageResult'] as $day=>$value)
+    {
+        $allArr[] = "$day $value";
+    }
+    foreach($allaverageRet['chooseResult'] as $day=>$value)
+    {
+        $smallArr[] = "$day $value";
+    }
+    file_put_contents("data/income/${strategyName}.all", implode("\n", $allArr));
+    file_put_contents("data/income/${strategyName}.${smallCount}", implode("\n", $smallArr));
+    //return;
+
+    //策略选股计算
+    writeLog("start to compute kdj002 income");
+    $strategyName = 'kdj002.st';
+    $strategyDir = "data/result/$strategyName/";
+    foreach($timeSeries as $index=>$dayTime)
+    {
+        $file = $strategyDir.$dayTime;
+        if(file_exists($file))
+        {
+            $strategyCodeListStr = file_get_contents($file);
+            $strategyCodeList = getArrayFromString($strategyCodeListStr);
+            $buyDay = $timeSeries[$index+1];
+            if(!empty($strategyCodeList)&&!empty($buyDay))
+            {
+                $stockList[$buyDay] = $strategyCodeList;
+            }            
+        }
+
+    }
+    writeLog("get trade list of [$strategyName] ret is [".var_export($stockList,true));
+    $smallCount = 2;
+    $allaverageRet = computeAverageIncomeByStrategy($stockList,$day,$smallCount);
+    $kdjResult = $allaverageRet;
+    $allArr = array();
+    $smallArr = array();
+    foreach($allaverageRet['averageResult'] as $day=>$value)
+    {
+        $allArr[] = "$day $value";
+    }
+    foreach($allaverageRet['chooseResult'] as $day=>$value)
+    {
+        $smallArr[] = "$day $value";
+    }
+    file_put_contents("data/income/${strategyName}.all", implode("\n", $allArr));
+    file_put_contents("data/income/${strategyName}.${smallCount}", implode("\n", $smallArr));
+    //file_put_contents("data/income/$strategyName", $resultStr);   
+
+    //合并成一个文件
+    $tempArr = array();
+    writeLog("get kdjResult result is [".var_export($kdjResult,true)."] and randResult is [".var_export($randResult,true),true);
+    foreach($kdjResult['averageResult'] as $day=>$value)
+    {
+        if(isset($randResult['averageResult'][$day]))
+        {
+            // 随机-所有均值，随机-20只股票，kdj 所有均值，kdj-2只均值
+            $tempArr[] = "$day ".$randResult['averageResult'][$day]." ".$randResult['chooseResult'][$day]." ".$kdjResult['averageResult'][$day]." ".$kdjResult['chooseResult'][$day];
+        }
+    }
+    writeLog("get all result is [".var_export($tempArr,true),true);
+    file_put_contents("data/income/all", implode("\n", $tempArr)."\n");
 }
 
 function getHtmlByStrategy($strategy,$time)
@@ -131,6 +275,7 @@ function saveBuySignal($buySignal,$nowSignal)
 
 function getCodeByStrategy($strategyName,$time)
 {
+    writeLog("getCodeByStrategy of [$strategyName] at time [$time]");
 	$strategyFile = "strategy/${strategyName}";
 	$strategyContent = file_get_contents($strategyFile);
 	//替换时间
@@ -166,7 +311,7 @@ function getCodeByStrategy($strategyName,$time)
     }
     $urlBase = 'http://www.iwencai.com/stockpick/search';
     $url = $urlBase."?".implode('&',$dataArr);
-    writeLog("url = $url ",true);
+    writeLog("url = $url ");
 	// curl抓取网页
 	$htmlContent = file_get_contents($url);
     $rule = '/"token":"([0-9a-z]+)","staticList"/';  
@@ -255,11 +400,13 @@ function getCodeByStrategy($strategyName,$time)
         }
 
     }
+    writeLog("saveBuySignal of [$strategyName] at time [$time] ret is [".json_encode($buySignal));
     saveBuySignal($buySignal,$nowSignal);
 	//$htmlContent = getHtmlByStrategy($strategyStr,$time);
 	//$codeList = getCodeFromHtml($htmlContent);
     // print_r($buySignal);
     // print_r($nowSignal);
+    writeLog("get code list of [$strategyName] at time [$time] ret is [".var_export($codeList,true));
 	return $codeList;
 }
 
@@ -270,10 +417,10 @@ function getMarketTimeList()
     $timeArr = array();
     foreach($data as $info)
     {
-        if($info[0]<'20150615')
-        {
-            continue;
-        }
+        // if($info[0]<'20150615')
+        // {
+        //     continue;
+        // }
         $timeArr[] = $info[0];
     }
     return $timeArr;
@@ -301,7 +448,7 @@ function getHistoryCodeByStrategy($strategyName)
 		    //break;
 		}
         $sleepTime = rand(5,10);
-        //sleep($sleepTime);
+        sleep($sleepTime);
 	}
 }
 
@@ -386,12 +533,12 @@ function getAllStockList()
     $listStr = file_get_contents("stock_list");
     $codeListArr = explode("\n",$listStr);
     $list = array();
-    foreach($codeListArr as $codeStr)
+    foreach($codeListArr as $code)
     {
         //$code='sh600062';
         //$code='sh600072';
         //echo "getStockData of [$code]\n";
-        $code = str_replace(array("sh","sz"), "", $codeStr);
+        //$code = str_replace(array("sh","sz"), "", $code);
         if(!empty($code))
         {
             $list[] = $code;
@@ -407,7 +554,14 @@ function checkStock($code,$time,$day)
         'errorMsg' => 'ok',
         'data' => array(),
     );
+    // 如果是创业板，略过
+    if(preg_match("/^(sh|sz)3/",$code)==1||preg_match("/^3/",$code)==1)
+    {
+        writeLog("code [$code] is gem board,skip it!");
+        return;
+    }
     $test_re="/^[0-9]+/";
+
     if(preg_match($test_re,$code)==1)
     {
         $stock = getStockData("sz${code}");
@@ -442,8 +596,9 @@ function checkStock($code,$time,$day)
     // 开盘价
     $startPrice = $first[1];
     //开盘直接涨停的，开盘=收盘
-    if(empty($startPrice)||$startPrice<3||$first[1]==$first[2])
+    if(empty($startPrice)||$startPrice<3||$startPrice>200||$first[1]==$first[2])
     {
+        writeLog("code = [$code] startPrice = $startPrice skip it!");
         return;
     }
     //$endPrice = $last[2];
@@ -455,7 +610,7 @@ function checkStock($code,$time,$day)
         $last = $matchStockData[$index];
         $endPrice = $last[2];
         $volPercent = round(($endPrice - $startPrice)*100/$startPrice,2);
-        writeLog("code = [$code], startPrice = $startPrice ,endPrice = $endPrice");
+        //writeLog("code = [$code], startPrice = $startPrice ,endPrice = $endPrice");
         if($volPercent<-10)
         {
             // 当收益率≤ - 10 %时止损
@@ -465,18 +620,19 @@ function checkStock($code,$time,$day)
     }
     
     //print_r($last);
-    if($volPercent>100)
+    if($volPercent>80)
     {
         return;
     }
 
     $data = array(
+        'startDay' => $first[0],
         'startPrice' => $startPrice,
         'endPrice' => $endPrice,
         'volPercent' => $volPercent,
     );
     $res['data'] = $data;
-    writeLog("res data is [".var_export($res,true));
+    writeLog("res data is [".json_encode($res));
     //echo "vol percent of [$code] at [$time] and [$day] days is [${volPercent}%],startPrice=[$startPrice] \n";
     return $res;
 }
@@ -532,8 +688,10 @@ function checkIncomeByStrategy($strategyName)
         $dayIndex++;
         //print_r($codeList);
     }
+    writeLog("checkIncomeByStrategy of strategyList is ".var_export($strategyList,true),true);
     //print_r($strategyList);
     $ret = computeWin($strategyList,$day);
+    writeLog("checkIncomeByStrategy of ret is ".var_export($ret,true),true);
     return $ret;
     //print_r($ret);
 }
@@ -594,6 +752,72 @@ function computeWinByRandom()
     return $ret;
     //print_r($ret);
     //print_r($sampleStrateguList);
+}
+
+/*
+    params:
+        // 股票列表
+        $stockList = array(
+            '20150701' => array('111111','111222'),
+            '20150702' => array('222333','333444'),
+            ......
+        );
+        //持股天数
+        $day = 10;
+        //选股数
+        $stockCount = 2;
+    return:
+        // 单只股票持仓N天的收益
+        $income = array(
+            '20150701' => array(0.11,-0.12),
+            '20150702' => array(-0.1,0.3),
+        );
+*/
+// stockList 股票列表 array(20150701 => array()
+function computeAverageIncomeByStrategy($stockList,$day,$stockCount=-1)
+{
+    $result = array();
+    foreach($stockList as $dayTime=>$list)
+    {
+        foreach($list as $code)
+        {
+            $ret = checkStock($code,$dayTime,$day);
+            if($ret['data']['startPrice']>0)
+            {
+                $result[$dayTime][] = $ret['data']['volPercent'];                        
+            }            
+        }
+    }
+
+    $averageResult = array();
+    $chooseResult = array();
+    foreach($result as $dayTime=>$incomeList)
+    {
+        $cnt = count($incomeList);
+        if($cnt>0)
+        {
+            $averageResult[$dayTime] = round(array_sum($incomeList)/$cnt,2);
+            if($stockCount==-1)
+            {
+                $chooseResult[$dayTime] = $averageResult[$dayTime];
+            }
+            else
+            {
+                shuffle($incomeList);
+                $chooseList = array_slice($incomeList, 0,$stockCount);
+                $chooseResult[$dayTime] = round(array_sum($chooseList)/count($chooseList),2);                
+            }
+
+        }
+        writeLog("day income of [$dayTime] result is [".json_encode($incomeList)."] and ret is [".$averageResult[$dayTime]);
+    }
+    $data = array(
+        'averageResult' => $averageResult,
+        'chooseResult' => $chooseResult,
+    );
+
+    writeLog("computeAverageIncomeByStrategy result is [".var_export($data,true),true);
+    return $data;
 }
 
 function computeAverageRandom($count=1)
@@ -699,14 +923,19 @@ function compare()
         // $deal['total']++;
         $startPriceDiff = $startPrice-$ret['data']['startPrice'];
         $endPriceDiff = $endPrice - $ret['data']['endPrice'];
-        echo "day=[$dayTime], code=[$code] , startPriceDiff = [$startPriceDiff], endPriceDiff = [$endPriceDiff]\n";
+        writeLog("day=[$dayTime], code=[$code] , startPriceDiff = [$startPriceDiff], endPriceDiff = [$endPriceDiff]",true);
     }
     $ret = computeWin($strategyList,$day);
-    print_r($ret);
+    computeAverageIncomeByStrategy($strategyList,$day);
+    //print_r($strategyList);
 }
 
 
+function getTradingStrategy($stockList,$day,$startDay)
+{
 
+    print_r($stockList);
+}
 
 // $content = file_get_contents('0629kdj.html');
 // $codeList = getCodeFromHtml($content);
