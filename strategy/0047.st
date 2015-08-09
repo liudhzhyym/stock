@@ -1,0 +1,1 @@
+${time}macd(macd>0.2)
