@@ -113,27 +113,30 @@ function test()
     //$ret = getCodeByStrategy("001.st","2015年08月07日");
     //getHistoryCodeByStrategy("001.st");
     //print_r($ret);
-    $strategyListStr = shell_exec("cd strategy && ls 00*");
-    writeLog("get strategyList ret is [$strategyListStr]");
-    $listArr = explode("\n", $strategyListStr);
-    foreach($listArr as $index=>$fileName)
-    {
-        if(!empty($fileName))
-        {
-            getHistoryCodeByStrategy($fileName);
-            //echo $fileName."\n";
-            //file_put_contents("strategy/00${index}.st", $line);
-        }
-    }    
-    // $listStr = file_get_contents("allStrategy");
-    // $listArr = explode("\n", $listStr);
-    // foreach($listArr as $index=>$line)
+
+    //批量获取所有历史数据
+    // $strategyListStr = shell_exec("cd strategy && ls 00*");
+    // writeLog("get strategyList ret is [$strategyListStr]");
+    // $listArr = explode("\n", $strategyListStr);
+    // foreach($listArr as $index=>$fileName)
     // {
-    //     if(!empty($line))
+    //     if(!empty($fileName))
     //     {
-    //         file_put_contents("strategy/00${index}.st", $line);
+    //         getHistoryCodeByStrategy($fileName);
+    //         //echo $fileName."\n";
+    //         //file_put_contents("strategy/00${index}.st", $line);
     //     }
-    // }
+    // }    
+    
+    $listStr = file_get_contents("allStrategy");
+    $listArr = explode("\n", $listStr);
+    foreach($listArr as $index=>$line)
+    {
+        if(!empty($line))
+        {
+            file_put_contents("strategy/00${index}.st", $line);
+        }
+    }
 }
 
 
