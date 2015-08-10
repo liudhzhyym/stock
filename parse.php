@@ -106,39 +106,54 @@ function test()
     //     '20150624' => array('002415'),
     //     '20150625' => array('002252'),
     // );
-
+    // generate();
+    // return;
     //print_r($stockList);
     // computeAverageIncomeByStrategyTest();
     // return;
     //$ret = getCodeByStrategy("001.st","2015年08月07日");
     //getHistoryCodeByStrategy("001.st");
     //print_r($ret);
-
     //批量获取所有历史数据
-    // $strategyListStr = shell_exec("cd strategy && ls 00*");
-    // writeLog("get strategyList ret is [$strategyListStr]");
-    // $listArr = explode("\n", $strategyListStr);
-    // foreach($listArr as $index=>$fileName)
-    // {
-    //     if(!empty($fileName))
-    //     {
-    //         getHistoryCodeByStrategy($fileName);
-    //         //echo $fileName."\n";
-    //         //file_put_contents("strategy/00${index}.st", $line);
-    //     }
-    // }    
-    
+    $strategyListStr = shell_exec("cd strategy && ls 00*");
+    writeLog("get strategyList ret is [$strategyListStr]");
+    $listArr = explode("\n", $strategyListStr);
+    foreach($listArr as $index=>$fileName)
+    {
+        if(!empty($fileName))
+        {
+            getHistoryCodeByStrategy($fileName);
+            //echo $fileName."\n";
+            //file_put_contents("strategy/00${index}.st", $line);
+        }
+    }    
+
+}
+
+function generate()
+{
     $listStr = file_get_contents("allStrategy");
     $listArr = explode("\n", $listStr);
     foreach($listArr as $index=>$line)
     {
         if(!empty($line))
         {
-            file_put_contents("strategy/00${index}.st", $line);
+            $line = trim($line);
+            $tempArr = explode(" ", $line);
+            writeLog("line of [$index] str is [$line]",true);
+            //print_r($tempArr);
+            if($tempArr[1]=="ok")
+            {
+                file_put_contents("strategy/00${index}.st", trim($tempArr[0]));
+            }
+            else
+            {
+                @unlink("strategy/00${index}.st");
+            }
+            //file_put_contents("strategy/00${index}.st", $line);
         }
     }
 }
-
 
 function computeAverageIncomeByStrategyTest()
 {
@@ -450,7 +465,7 @@ function getHistoryCodeByStrategy($strategyName)
 			file_put_contents("data/result/${strategyName}/${time}", $str);
 		    //break;
 		}
-        $sleepTime = rand(5,10);
+        $sleepTime = rand(2,4);
         sleep($sleepTime);
 	}
 }
