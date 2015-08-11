@@ -2,12 +2,38 @@
 
 class Stock extends CI_Controller {
 
-    function __construct() {
+	private $_stockDataDir;
+
+    function __construct() 
+    {
         parent::__construct();
         $this->load->database();
+        $this->load->helper('file');
+
+        //设置文件目录
+        $this->_stockDataDir = "application/data/stock_data";
+        if(!is_dir($this->_stockDataDir))
+        {
+        	@mkdir($this->_stockDataDir, 0777, true);
+        }
     }
 
-    public function httpCall($url, array $post = array(), array $options = array(), $timeout = 10, $retry = 1) {
+	private function getArrayFromString($content,$split="\n")
+	{
+	    $arr = explode($split, $content);
+	    $result = array();
+	    foreach($arr as $value)
+	    {
+	        $value = trim($value);
+	        if(!empty($value))
+	        {
+	            $result[] = $value;
+	        }
+	    }
+	    return $result;
+	}
+
+    private function httpCall($url, array $post = array(), array $options = array(), $timeout = 10, $retry = 1) {
 
         $res = array(
             'errorCode' => 0,
@@ -50,16 +76,99 @@ class Stock extends CI_Controller {
             break;
         }
 
-        log_message("error","httpCall ret is [".json_encode($res));
+        //log_message("error","httpCall ret is [".json_encode($res));
         return $res;
     }
+
+    private function queryDataFromQQ($url)
+    {
+		$data = file_get_contents($url);
+		$arr = explode("\\n\\", $data);
+		$url_data = array();
+		$test_re="/^[0-9]+/";
+		foreach($arr as $value)
+		{
+			//echo $value;
+			$value = trim($value);
+			if(preg_match($test_re,$value)==1)
+			{
+				//$url_data[] = $value;
+				$url_data[] = explode(" ", $value);
+			}
+
+		}
+		return $url_data;
+    }
+
+	private function getStockData($code,$startTime=null,$endTime=null)
+	{
+	    $dir = $this->_stockDataDir;
+		$codeFile = "${dir}/${code}";
+		if(file_exists($codeFile))
+		{
+			$str = file_get_contents($codeFile);
+	        $data = json_decode($str,true);
+	        if(!empty($data))
+	        {
+	            return $data;
+	        }
+		}
+		//$url = 'http://data.gtimg.cn/flashdata/hushen/daily/14/sh600062.js';
+		$url = "http://data.gtimg.cn/flashdata/hushen/daily/14/${code}.js";
+		$data_14 = $this->queryDataFromQQ($url);
+		$url = "http://data.gtimg.cn/flashdata/hushen/daily/15/${code}.js";
+		$data_15 = $this->queryDataFromQQ($url);	
+		$all = array_merge($data_14,$data_15);
+		$stock_data = array();
+		foreach($all as $value)
+		{
+			$value[0] = '20'.$value[0];
+			if($startTime!=null&&$endTime!=null)
+			{
+				if($value[0]>=$startTime&&$value[0]<=$endTime)
+				{
+					$stock_data[] = $value;
+				}
+			}
+			else
+			{
+				$stock_data[] = $value;
+			}
+		}
+	    if(!empty($stock_data))
+	    {
+		    file_put_contents($codeFile, json_encode($stock_data));
+	    }
+		return $stock_data;
+	}
+
+	public function getAllStockList()
+	{
+		$list = $this->getList('stockList.conf');
+		//print_r($list);
+		return $list;
+	}
+
+	public function getAllStockData()
+	{
+		$list = $this->getAllStockList();
+		foreach($list as $code)
+		{
+			$this->getStockData($code);
+		}
+		//print_r($list);
+	}
 
     public function insert($strategy,$day,$page,$result)
     {
     	$sql = "INSERT INTO `stock` (`strategy`, `day`, `page`, `result`) VALUES (\"$strategy\", \"$day\", $page , '$result') ON DUPLICATE KEY UPDATE `result`= '$result'";
     	//$sql = "INSERT INTO `stock` (`strategy`, `day`, `page`, `result`) VALUES (\"$strategy\", \"$day\", $page , '$result')";
     	$ret = $this->db->query($sql);
-    	log_message('debug', "insert data of [$strategy][$day][$page] , and result is [$ret]");
+    	if($ret===false)
+    	{
+    		log_message('error', "insert data of [$strategy][$day][$page] failed");
+    	}
+    	
     }
 
 	public function index()
@@ -80,13 +189,15 @@ class Stock extends CI_Controller {
 		// print_r($ret);
 	}
 
-	public function 
-
-	public function test()
+	public function queryByStrategyAndDay($strategy,$dayTime)
 	{
-//		log_message('debug','abcd',true);
-		$dayTime = "20150801";
-		$strategy = "kdj金叉";
+		if(empty($strategy)||empty($dayTime))
+		{
+			log_message('error', "strategy [$strategy] or dayTime [$dayTime] should not be null",true);
+			return;
+		}
+		//$dayTime = "20150801";
+		//$strategy = "kdj金叉";
 		$year = substr($dayTime,0,4);
 		$month = substr($dayTime,4,2);
 		$day = substr($dayTime,6,2);
@@ -148,8 +259,40 @@ class Stock extends CI_Controller {
 	        $page++;
 	        //break;
 	    } 
+	    if(empty($codeInfoList))
+	    {
+	    	log_message("error","get code list of [$strategy] at [$dayTime] failed!");
+	    }
+	    log_message("debug","get code list of [$strategy] at [$dayTime] ret is [".var_export($codeInfoList,true));
+	}
+
+	//public function getStrategyList()
+	// file = 'strategyList.conf';
+	public function getList($file)
+	{
+		$listFile = "application/data/${file}";
+		$content = file_get_contents($listFile);
+		$list = $this->getArrayFromString($content);
+		log_message("debug","getList of file [$listFile] is [".var_export($list,true));
+		return $list;
+	}
+
+
+	public function test()
+	{
+//		log_message('debug','abcd',true);
+		// $dayTime = "20150801";
+		// $strategy = "kdj金叉";
+		// $this->queryByStrategyAndDay($strategy,$dayTime);
+		// $code = 'sh600062';
+		// $ret = $this->getStockData($code);
+		// print_r($ret);
+		//$strategyList = $this->getStrategyList();
+
 	    //print_r($codeInfoList);
 	}
+
+
 
 }
 
