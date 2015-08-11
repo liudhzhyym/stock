@@ -159,6 +159,23 @@ class Stock extends CI_Controller {
 		//print_r($list);
 	}
 
+	//获取上证指数的开盘时间序列
+	public function getMarketTimeList()
+	{
+	    $data = $this->getStockData("sh000001");
+	    $timeArr = array();
+	    foreach($data as $info)
+	    {
+	        // if($info[0]<'20150615')
+	        // {
+	        //     continue;
+	        // }
+	        $timeArr[] = $info[0];
+	    }
+	    //print_r($timeArr);
+	    return $timeArr;
+	}
+
     public function insert($strategy,$day,$page,$result)
     {
     	$sql = "INSERT INTO `stock` (`strategy`, `day`, `page`, `result`) VALUES (\"$strategy\", \"$day\", $page , '$result') ON DUPLICATE KEY UPDATE `result`= '$result'";
@@ -263,7 +280,7 @@ class Stock extends CI_Controller {
 	    {
 	    	log_message("error","get code list of [$strategy] at [$dayTime] failed!");
 	    }
-	    log_message("debug","get code list of [$strategy] at [$dayTime] ret is [".var_export($codeInfoList,true));
+	    //log_message("debug","get code list of [$strategy] at [$dayTime] ret is [".var_export($codeInfoList,true));
 	}
 
 	//public function getStrategyList()
@@ -277,6 +294,22 @@ class Stock extends CI_Controller {
 		return $list;
 	}
 
+	public function queryData()
+	{
+		$strategyList = $this->getList('strategyList.conf');
+		$timeList = $this->getMarketTimeList();
+		foreach($strategyList as $strategy)
+		{
+			foreach($timeList as $dayTime)
+			{
+				$this->queryByStrategyAndDay($strategy,$dayTime);
+		        $sleepTime = rand(3,6);
+		        sleep($sleepTime);
+				//break;
+			}
+		}
+		log_message("debug","get timeList [".json_encode($timeList)."] and strategyList is [".json_encode($strategyList),true);
+	}
 
 	public function test()
 	{
@@ -287,7 +320,6 @@ class Stock extends CI_Controller {
 		// $code = 'sh600062';
 		// $ret = $this->getStockData($code);
 		// print_r($ret);
-		//$strategyList = $this->getStrategyList();
 
 	    //print_r($codeInfoList);
 	}
