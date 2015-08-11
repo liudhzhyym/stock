@@ -69,7 +69,7 @@ class CI_Log {
 	 * @param	bool	whether the error is a native PHP error
 	 * @return	bool
 	 */
-	public function write_log($level = 'error', $msg, $php_error = FALSE)
+	public function write_log($level = 'error', $msg, $php_error = FALSE,$print=FALSE)
 	{
 		if ($this->_enabled === FALSE)
 		{
@@ -97,6 +97,11 @@ class CI_Log {
 		}
 
 		$message .= $level.' '.(($level == 'INFO') ? ' -' : '-').' '.date($this->_date_fmt). ' --> '.$msg."\n";
+
+		if($print)
+		{
+			echo $message;
+		}
 
 		flock($fp, LOCK_EX);
 		fwrite($fp, $message);
