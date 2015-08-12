@@ -33,7 +33,7 @@ class Stock extends CI_Controller {
 	    return $result;
 	}
 
-    private function httpCall($url, array $post = array(), array $options = array(), $timeout = 10, $retry = 1) {
+    private function httpCall($url, array $post = array(), array $options = array(), $timeout = 15, $retry = 2) {
 
         $res = array(
             'errorCode' => 0,
@@ -259,6 +259,7 @@ class Stock extends CI_Controller {
 	    log_message("debug","token = $token ");
 	    $page = 1;
 	    $codeInfoList = array();
+	    //return;
 	 	while (true) 
 	    {
 	        $apiUrl = "http://www.iwencai.com/stockpick/cache?token={$token}&p={$page}&perpage=30&showType=";
@@ -272,14 +273,14 @@ class Stock extends CI_Controller {
 	        {
 	            break;
 	        }
-	        $codeInfoList = array_merge($codeInfoList,$apiData['result']);
+	        //$codeInfoList = array_merge($codeInfoList,$apiData['result']);
 	        $page++;
 	        //break;
 	    } 
-	    if(empty($codeInfoList))
-	    {
-	    	log_message("error","get code list of [$strategy] at [$dayTime] failed!");
-	    }
+	    // if(empty($codeInfoList))
+	    // {
+	    // 	log_message("error","get code list of [$strategy] at [$dayTime] failed!");
+	    // }
 	    //log_message("debug","get code list of [$strategy] at [$dayTime] ret is [".var_export($codeInfoList,true));
 	}
 
@@ -294,9 +295,27 @@ class Stock extends CI_Controller {
 		return $list;
 	}
 
+	public function queryDataByIndexAndDay($strategyIndex,$dayTime)
+	{
+		ini_set('memory_limit', '-1');
+		log_message("debug","queryDataByIndexAndDay index is [$strategyIndex] and dayTime is [$dayTime]");
+		$index = (int)$strategyIndex;
+		$strategyList = $this->getList('strategy2load.conf');
+		$strategy = $strategyList[$index];
+		$this->queryByStrategyAndDay($strategy,$dayTime);
+		$this->checkMem();
+	}
+
+	private function checkMem()
+	{
+        $memBytes = memory_get_usage();
+        $memM = round($memBytes*1.0/(1024*1024),2);
+        log_message("debug","now mem used is [$memM]Mb");	
+	}
+
 	public function queryData()
 	{
-		$strategyList = $this->getList('strategyList.conf');
+		$strategyList = $this->getList('strategy2load.conf');
 		$timeList = $this->getMarketTimeList();
 		foreach($strategyList as $strategy)
 		{
@@ -304,7 +323,9 @@ class Stock extends CI_Controller {
 			{
 				$this->queryByStrategyAndDay($strategy,$dayTime);
 		        $sleepTime = rand(3,6);
-		        sleep($sleepTime);
+		        //sleep($sleepTime);
+
+		        //echo number_format(memory_get_usage()) . "\n";
 				//break;
 			}
 		}
@@ -313,6 +334,8 @@ class Stock extends CI_Controller {
 
 	public function test()
 	{
+		//$timeList = $this->getMarketTimeList();
+		//file_put_contents("application/data/timeList.conf",implode("\n", $timeList));
 //		log_message('debug','abcd',true);
 		// $dayTime = "20150801";
 		// $strategy = "kdj金叉";
