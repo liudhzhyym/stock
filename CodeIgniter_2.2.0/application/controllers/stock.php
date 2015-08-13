@@ -332,8 +332,107 @@ class Stock extends CI_Controller {
 		log_message("debug","get timeList [".json_encode($timeList)."] and strategyList is [".json_encode($strategyList),true);
 	}
 
+	public function updateStockData($stock,$dayTime,$data)
+	{
+		if(empty($stock)||empty($dayTime)||empty($data))
+		{
+			log_message('error', "updateStockData stock [$stock] or dayTime [$dayTime] and data should not be null",true);
+			return;
+		}
+		$query = $this->db->query("SELECT * FROM stock_data where `stock`='${stock}' and `day`='${dayTime}'");
+
+		$row = $query->row_array();
+		if(empty($row))
+		{
+			//插入
+			$indicator = json_encode($data);
+	    	$sql = "INSERT INTO `stock_data` (`stock`, `day`, `indicator`) VALUES ('$stock', '$dayTime', '$indicator')";
+	    	$ret = $this->db->query($sql);
+	    	if($ret===false)
+	    	{
+	    		log_message('error', "insert data of [$stock][$dayTime] failed");
+	    	}
+		}
+		else
+		{
+			//更新
+			$stockData = json_decode($row['indicator'],true);
+			if(!empty($stockData))
+			{
+				$stockData = array_merge($stockData,$data);
+			}
+			else
+			{
+				$stockData = $data;
+			}
+			$indicator = json_encode($stockData);
+	    	$sql = "UPDATE `stock_data` set `indicator` = '$indicator' where `stock`='${stock}' and `day`='${dayTime}'";
+	    	$ret = $this->db->query($sql);
+	    	if($ret===false)
+	    	{
+	    		log_message('error', "update data of [$stock][$dayTime] failed");
+	    	}	
+		}
+	}
+
 	public function test()
 	{
+		$stock = '600123';
+		$dayTime = '20150101';
+		$data = array(
+			'price' => 1.23,
+			'kdj_x' => -1,
+			'macd_xx' => 1,
+		);
+		$this->updateStockData($stock,$dayTime,$data);
+		$dir = 'application/data/qq_stock_data/';
+		$qqStockList = get_dir_file_info($dir);
+		foreach($qqStockList as $stock => $fileInfo)
+		{
+			$stock = 'sh000001';
+			$file = $dir."${stock}";
+			$content = file_get_contents($file);
+			$data = json_decode($content,true);
+			foreach($data as $value)
+			{
+				$dayTime = $value['time'];
+				$this->updateStockData($stock,$dayTime,$value);
+			}
+			//print_r($data);
+			break;
+		}
+		//print_r($ret);
+	}
+
+	public function test2()
+	{
+		$dayTime = "20140102";
+		$strategy = "kdj金叉";
+		$year = substr($dayTime,0,4);
+		$month = substr($dayTime,4,2);
+		$day = substr($dayTime,6,2);
+	    //$time = "2015年08月01日";
+		$time = "{$year}年{$month}月{$day}日";
+	    //$strategyStr = "${time}换手率从大到小排名；${time}涨跌幅从大到小排名；${time}量比从大到小排名；${time}A股流通市值从大到小排名；${time}A股总市值从大到小排名；";
+	    $strategyStr = $time.$strategy."；";
+	    $page = 1;
+	    
+
+		$_req = array(
+			'strategy' => $strategy, 
+			'day' => $dayTime, 
+			'page' => $page,
+		);
+		$this->db->where('strategy',$strategy)->where('day',$dayTime)->where('page',$page);
+		$this->db->limit(5);
+		//$query = $this->db->get('stock')->where('strategy',$strategyStr);
+		$query = $this->db->get('stock');
+		foreach ($query->result() as $row)
+		{
+			print_r($row);
+		    //echo $row['title'];
+		}
+		//print_r($ret);
 		//$timeList = $this->getMarketTimeList();
 		//file_put_contents("application/data/timeList.conf",implode("\n", $timeList));
 //		log_message('debug','abcd',true);
