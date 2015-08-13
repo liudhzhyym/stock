@@ -52,6 +52,8 @@
 	function save_stock_data($filename,$str)
 	{
 		//return "aaaaaaa";
+		file_put_contents($filename, $str);
+		return;
 		$stock_data = json_decode($str,true);
 		//le_put_contents($filename, var_export($stock_data,true));
 		$data_str_arr = array();
