@@ -176,31 +176,9 @@ class Stock extends CI_Controller {
 	    return $timeArr;
 	}
 
-    public function insert($strategy,$day,$page,$result)
-    {
-    	$sql = "INSERT INTO `stock` (`strategy`, `day`, `page`, `result`) VALUES (\"$strategy\", \"$day\", $page , '$result') ON DUPLICATE KEY UPDATE `result`= '$result'";
-    	//$sql = "INSERT INTO `stock` (`strategy`, `day`, `page`, `result`) VALUES (\"$strategy\", \"$day\", $page , '$result')";
-    	$ret = $this->db->query($sql);
-    	if($ret===false)
-    	{
-    		log_message('error', "insert data of [$strategy][$day][$page] failed");
-    	}
-    	
-    }
-
 	public function index()
 	{
-		//$query = $this->db->query("SELECT * FROM product limit 3");
-		//print_r($query->result());
-		$data = array(
-			'strategy' => '2015年08月01日kdj金叉；',
-			'day' => '20150801',
-			'page' => 1,
-			'result' => '{"title":["\u80a1\u7968\u7b80\u79f0","\u80a1\u7968\u4ee3\u7801","\u6da8\u8dcc\u5e45(%)",',
-		);
-		//$ret = $this->db->insert('stock', $data); 
-		$ret = $this->insert($data['strategy'],$data['day'],$data['page'],$data['result']);
-		print_r($ret);
+
 		// $url = 'http://www.cnblogs.com/lida/archive/2011/02/18/1958211.html';
 		// $ret = $this->httpCall($url);
 		// print_r($ret);
@@ -264,18 +242,29 @@ class Stock extends CI_Controller {
 	    {
 	        $apiUrl = "http://www.iwencai.com/stockpick/cache?token={$token}&p={$page}&perpage=30&showType=";
 	        $_ret = $this->httpCall($apiUrl);
-	        if(!empty($_ret['data']))
+	        $retStr = $_ret['data'];
+	        if(!empty($retStr))
 	        {
-	        	$ret = $this->insert($strategy,$dayTime,$page,$_ret['data']);
+				$data = array(
+					'strategy' => $strategy,
+					'day' => $dayTime,
+					'page' => $page,
+					'result' => $retStr,
+				);
+				$mysqlRet = $this->db->insert('tonghuashun',$data,true);
+		    	if($mysqlRet===false)
+		    	{
+		    		$mysql = $this->db->last_query();
+		    		log_message('error', "insert data of [$stock][$dayTime] failed, mysql is [$mysql]",true);
+		    	}
 	        }
-	        $apiData = (array)json_decode($_ret['data']);
+	        $apiData = json_decode($retStr,true);
 	        if(empty($apiData['result'])||$page>100)
 	        {
 	            break;
 	        }
 	        //$codeInfoList = array_merge($codeInfoList,$apiData['result']);
 	        $page++;
-	        //break;
 	    } 
 	    // if(empty($codeInfoList))
 	    // {
@@ -346,10 +335,7 @@ class Stock extends CI_Controller {
 			'name' => $name,
 			'value' => $value,
 		);
-		$ondup = array(
-			'value' => $value,
-		);
-    	$ret = $this->db->insert('stock_data',$data,$ondup);
+    	$ret = $this->db->insert('stock_data',$data,true);
     	if($ret===false)
     	{
     		$mysql = $this->db->last_query();
@@ -357,15 +343,62 @@ class Stock extends CI_Controller {
     	}
 	}
 
-
-	public function test()
+	public function convertCode($code)
 	{
-		//测试ondup插入
-		$stock = '600123';
-		$dayTime = '20150102';
-		$name = 'macd';
-		$value = '111';
-		$this->updateStockData($stock,$dayTime,$name,$value);
+		$temp = explode(".", $code);
+		$newCode = $temp[1].".".$temp[0];
+		return strtolower($newCode);
+	}
+
+	//处理同花顺的数据
+	public function parseDataByIndexAndDay($strategyIndex,$dayTime)
+	{
+		ini_set('memory_limit', '-1');
+		log_message("debug","parseDataByIndexAndDay index is [$strategyIndex] and dayTime is [$dayTime]");
+		$index = (int)$strategyIndex;
+		$strategyList = $this->getList('strategy2load.conf');
+		$strategy = $strategyList[$index];
+		//$this->queryByStrategyAndDay($strategy,$dayTime);
+		//$this->checkMem();
+    	$conds = array(
+    		'strategy' => $strategy,
+    		'day' => $dayTime,
+    	);
+    	$query = $this->db->get_where('tonghuashun', $conds);
+    	$cnt = $query->num_rows();
+    	log_message("debug","cnt is [$cnt]",true);
+    	$stockData = array();
+    	foreach ($query->result_array() as $row)
+    	{
+    		$page = (int)$row['page'];
+    		$resultArr = json_decode($row['result'],true);
+    		//print_r($result);
+    		foreach($resultArr['result'] as $info)
+    		{
+    			$stock = $this->convertCode($info[0]);
+    			$name = 'kdj_x';
+    			$value = '1';
+    			print_r($info);
+    			//$this->updateStockData($stock,$dayTime,$name,$value);
+    		}
+    		break;
+    	}
+    	
+    	//$row = $query->result_array();
+    	//print_r($row);
+	}
+
+
+	public function test5()
+	{
+		$this->queryByStrategyAndDayNew('kdj金叉','20140102');
+
+		// //测试ondup插入
+		// $stock = '600123';
+		// $dayTime = '20150102';
+		// $name = 'macd';
+		// $value = -3;
+		// $this->updateStockData($stock,$dayTime,$name,$value);
 	}
 
 	public function dbtest()
@@ -374,7 +407,7 @@ class Stock extends CI_Controller {
 		$stock = '600123';
 		$dayTime = '20150102';
 		$name = 'macd';
-		$value = '1231';
+		$value = 1231;
 		$data = array(
 			'stock' => $stock,
 			'day' => $dayTime,
@@ -400,7 +433,7 @@ class Stock extends CI_Controller {
     		'name' => 'macd',
     	);
     	$fields = array(
-    		'value' => '222',
+    		'value' => 222,
     	);
     	$this->db->update('stock_data', $fields, $conds);
        	//测试查询
@@ -413,32 +446,29 @@ class Stock extends CI_Controller {
 		//$this->db->insert('stock_data',$data);
 	}
 
-	public function test3()
+	public function loadQQData($stock)
 	{
-		$stock = '600123';
-		$dayTime = '20150101';
-		$data = array(
-			'price' => 1.23,
-			'kdj_x' => -1,
-			'macd_xx' => 1,
-		);
-		$this->updateStockData($stock,$dayTime,$data);
 		$dir = 'application/data/qq_stock_data/';
-		$qqStockList = get_dir_file_info($dir);
-		foreach($qqStockList as $stock => $fileInfo)
+
+		log_message('debug',"update stock info of [$stock]");
+		//$stock = 'sh000001';
+		$file = $dir."${stock}";
+		$content = file_get_contents($file);
+		$data = json_decode($content,true);
+		foreach($data as $dayInfo)
 		{
-			$stock = 'sh000001';
-			$file = $dir."${stock}";
-			$content = file_get_contents($file);
-			$data = json_decode($content,true);
-			foreach($data as $value)
+			$dayTime = $dayInfo['time'];
+			unset($dayInfo['time']);
+			foreach($dayInfo as $key=>$value)
 			{
-				$dayTime = $value['time'];
-				$this->updateStockData($stock,$dayTime,$value);
+				if(!empty($key))
+				{
+					$this->updateStockData($stock,$dayTime,$key,$value);
+				}
 			}
-			//print_r($data);
-			break;
 		}
+			//print_r($data);
+			//break;
 		//print_r($ret);
 	}
 

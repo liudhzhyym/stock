@@ -20,7 +20,7 @@ index=0
 for strategy in `cat application/data/strategy2load.conf`; do
 	for day in `cat application/data/timeList.conf` ; do
 		/home/work/osp/php/bin/php index.php stock queryDataByIndexAndDay $index $day
-		rand=$(random 2 5)
+		rand=$(random 3 5)
 		echo "sleep [$rand]s"
 		sleep $rand
 	done

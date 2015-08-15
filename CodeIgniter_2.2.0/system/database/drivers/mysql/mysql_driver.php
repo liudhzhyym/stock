@@ -555,7 +555,7 @@ class CI_DB_mysql_driver extends CI_DB {
     		$tempArr = array();
     		foreach($ondup as $key=>$value)
     		{
-    			$tempArr[] = "`$key` = '$value'";
+    			$tempArr[] = "$key = $value";
     		}
     		$ondupSql = " ON DUPLICATE KEY UPDATE ".implode(",", $tempArr);
     	}
