@@ -186,6 +186,7 @@ class Stock extends CI_Controller {
 
 	public function queryByStrategyAndDay($strategy,$dayTime)
 	{
+		log_message("debug","get code list of [$strategy] at [$dayTime]");
 		if(empty($strategy)||empty($dayTime))
 		{
 			log_message('error', "strategy [$strategy] or dayTime [$dayTime] should not be null",true);
@@ -270,7 +271,7 @@ class Stock extends CI_Controller {
 	    // {
 	    // 	log_message("error","get code list of [$strategy] at [$dayTime] failed!");
 	    // }
-	    //log_message("debug","get code list of [$strategy] at [$dayTime] ret is [".var_export($codeInfoList,true));
+	    
 	}
 
 	//public function getStrategyList()
@@ -346,7 +347,7 @@ class Stock extends CI_Controller {
 	public function convertCode($code)
 	{
 		$temp = explode(".", $code);
-		$newCode = $temp[1].".".$temp[0];
+		$newCode = $temp[1].$temp[0];
 		return strtolower($newCode);
 	}
 
@@ -378,10 +379,9 @@ class Stock extends CI_Controller {
     			$stock = $this->convertCode($info[0]);
     			$name = 'kdj_x';
     			$value = '1';
-    			print_r($info);
-    			//$this->updateStockData($stock,$dayTime,$name,$value);
+    			//print_r($info);
+    			$this->updateStockData($stock,$dayTime,$name,$value);
     		}
-    		break;
     	}
     	
     	//$row = $query->result_array();

@@ -31,5 +31,6 @@ CREATE TABLE `tonghuashun` (
     `page` int(5),
     `result` mediumtext,
     `update_time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-    UNIQUE KEY `tonghuashun_result` (`strategy`,`day`,`page`)
+    UNIQUE KEY `tonghuashun_result` (`strategy`,`day`,`page`),
+    KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
