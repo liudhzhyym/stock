@@ -547,9 +547,20 @@ class CI_DB_mysql_driver extends CI_DB {
 	 * @param	array	the insert values
 	 * @return	string
 	 */
-	function _insert($table, $keys, $values)
+	function _insert($table, $keys, $values,$ondup)
 	{
-		return "INSERT INTO ".$table." (".implode(', ', $keys).") VALUES (".implode(', ', $values).")";
+		$ondupSql = '';
+    	if(!empty($ondup))
+    	{
+    		$tempArr = array();
+    		foreach($ondup as $key=>$value)
+    		{
+    			$tempArr[] = "`$key` = '$value'";
+    		}
+    		$ondupSql = " ON DUPLICATE KEY UPDATE ".implode(",", $tempArr);
+    	}
+    	
+		return "INSERT INTO ".$table." (".implode(', ', $keys).") VALUES (".implode(', ', $values).")".$ondupSql;
 	}
 
 	// --------------------------------------------------------------------

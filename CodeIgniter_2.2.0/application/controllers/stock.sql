@@ -12,11 +12,11 @@ CREATE TABLE `stock` (
 
 DROP TABLE IF EXISTS `stock_data`;
 
-
 CREATE TABLE `stock_data` (
     `stock` varchar(10),
     `day` varchar(10),
-    `indicator` mediumtext,
+    `name` varchar(10),
+    `value` varchar(10),
     `update_time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-    UNIQUE KEY `stock_index` (`stock`,`day`)
+    UNIQUE KEY `stock_index` (`stock`,`day`,`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

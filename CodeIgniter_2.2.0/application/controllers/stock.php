@@ -332,50 +332,88 @@ class Stock extends CI_Controller {
 		log_message("debug","get timeList [".json_encode($timeList)."] and strategyList is [".json_encode($strategyList),true);
 	}
 
-	public function updateStockData($stock,$dayTime,$data)
+	public function updateStockData($stock,$dayTime,$name,$value)
 	{
-		if(empty($stock)||empty($dayTime)||empty($data))
+		if(empty($stock)||empty($dayTime)||empty($name))
 		{
-			log_message('error', "updateStockData stock [$stock] or dayTime [$dayTime] and data should not be null",true);
+			log_message('error', "updateStockData stock [$stock] or dayTime [$dayTime] and name [$name] should not be null",true);
 			return;
 		}
-		$query = $this->db->query("SELECT * FROM stock_data where `stock`='${stock}' and `day`='${dayTime}'");
 
-		$row = $query->row_array();
-		if(empty($row))
-		{
-			//插入
-			$indicator = json_encode($data);
-	    	$sql = "INSERT INTO `stock_data` (`stock`, `day`, `indicator`) VALUES ('$stock', '$dayTime', '$indicator')";
-	    	$ret = $this->db->query($sql);
-	    	if($ret===false)
-	    	{
-	    		log_message('error', "insert data of [$stock][$dayTime] failed");
-	    	}
-		}
-		else
-		{
-			//更新
-			$stockData = json_decode($row['indicator'],true);
-			if(!empty($stockData))
-			{
-				$stockData = array_merge($stockData,$data);
-			}
-			else
-			{
-				$stockData = $data;
-			}
-			$indicator = json_encode($stockData);
-	    	$sql = "UPDATE `stock_data` set `indicator` = '$indicator' where `stock`='${stock}' and `day`='${dayTime}'";
-	    	$ret = $this->db->query($sql);
-	    	if($ret===false)
-	    	{
-	    		log_message('error', "update data of [$stock][$dayTime] failed");
-	    	}	
-		}
+		$data = array(
+			'stock' => $stock,
+			'day' => $dayTime,
+			'name' => $name,
+			'value' => $value,
+		);
+		$ondup = array(
+			'value' => $value,
+		);
+    	$ret = $this->db->insert('stock_data',$data,$ondup);
+    	if($ret===false)
+    	{
+    		$mysql = $this->db->last_query();
+    		log_message('error', "insert data of [$stock][$dayTime] failed, mysql is [$mysql]",true);
+    	}
 	}
 
+
 	public function test()
+	{
+		//测试ondup插入
+		$stock = '600123';
+		$dayTime = '20150102';
+		$name = 'macd';
+		$value = '111';
+		$this->updateStockData($stock,$dayTime,$name,$value);
+	}
+
+	public function dbtest()
+	{
+		//测试ondup插入
+		$stock = '600123';
+		$dayTime = '20150102';
+		$name = 'macd';
+		$value = '1231';
+		$data = array(
+			'stock' => $stock,
+			'day' => $dayTime,
+			'name' => $name,
+			'value' => $value,
+		);
+    	$ret = $this->db->insert('stock_data',$data,$data);
+    	$mysql = $this->db->last_query();
+    	log_message('debug',"mysql is [$mysql] and ret is [$ret]",true);
+
+    	//测试查询
+    	$conds = array(
+    		'stock' => $stock,
+    	);
+    	$query = $this->db->get_where('stock_data', $conds);
+    	$row = $query->result_array();
+    	print_r($row);
+
+    	//update
+    	$conds = array(
+    		'stock' => $stock,
+    		'day' => $dayTime,
+    		'name' => 'macd',
+    	);
+    	$fields = array(
+    		'value' => '222',
+    	);
+    	$this->db->update('stock_data', $fields, $conds);
+       	//测试查询
+    	$conds = array(
+    		'stock' => $stock,
+    	);
+    	$query = $this->db->get_where('stock_data', $conds);
+    	$row = $query->result_array();
+    	print_r($row);
+		//$this->db->insert('stock_data',$data);
+	}
+
+	public function test3()
 	{
 		$stock = '600123';
 		$dayTime = '20150101';
