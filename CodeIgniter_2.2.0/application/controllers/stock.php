@@ -336,6 +336,7 @@ class Stock extends CI_Controller {
 			'name' => $name,
 			'value' => $value,
 		);
+		//log_message('debug', "insert data of [$stock][$dayTime][$name][$value]");
     	$ret = $this->db->insert('stock_data',$data,true);
     	if($ret===false)
     	{
@@ -367,20 +368,46 @@ class Stock extends CI_Controller {
     	);
     	$query = $this->db->get_where('tonghuashun', $conds);
     	$cnt = $query->num_rows();
-    	log_message("debug","cnt is [$cnt]",true);
+    	log_message("debug","cnt is [$cnt],strategy is [$strategy],$dayTime is [$dayTime]",true);
     	$stockData = array();
     	foreach ($query->result_array() as $row)
     	{
     		$page = (int)$row['page'];
     		$resultArr = json_decode($row['result'],true);
-    		//print_r($result);
+    		if(empty($resultArr['title']))
+    		{
+    			//查询到的数据为空
+    			//重新加载数据
+    			log_message("error","reload [$strategy][$dayTime] data",true);
+    			$this->queryByStrategyAndDay($strategy,$dayTime);
+    			return;
+    		}
+    		//print_r($resultArr);
     		foreach($resultArr['result'] as $info)
     		{
     			$stock = $this->convertCode($info[0]);
-    			$name = 'kdj_x';
-    			$value = '1';
-    			//print_r($info);
-    			$this->updateStockData($stock,$dayTime,$name,$value);
+    			//boll突破中轨
+    			if($strategy=='boll突破中轨')
+    			{
+	    			$name = 'boll_break_through';
+	    			$value = 1;
+	    			//print_r($info);
+	    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    			}
+    			else if($strategy=='kdj金叉')
+    			{
+	    			$name = 'kdj_gc';
+	    			$value = 1;
+	    			//print_r($info);
+	    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    			}
+    			else if($strategy=='macd金叉')
+    			{
+	    			$name = 'macd_gc';
+	    			$value = 1;
+	    			//print_r($info);
+	    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    			}
     		}
     	}
     	
