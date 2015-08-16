@@ -368,7 +368,7 @@ class Stock extends CI_Controller {
     	);
     	$query = $this->db->get_where('tonghuashun', $conds);
     	$cnt = $query->num_rows();
-    	log_message("debug","cnt is [$cnt],strategy is [$strategy],$dayTime is [$dayTime]",true);
+    	log_message("debug","cnt is [$cnt],strategy is [$strategy],$dayTime is [$dayTime]");
     	$stockData = array();
     	foreach ($query->result_array() as $row)
     	{
@@ -386,27 +386,160 @@ class Stock extends CI_Controller {
     		foreach($resultArr['result'] as $info)
     		{
     			$stock = $this->convertCode($info[0]);
-    			//boll突破中轨
-    			if($strategy=='boll突破中轨')
-    			{
-	    			$name = 'boll_break_through';
-	    			$value = 1;
-	    			//print_r($info);
-	    			$this->updateStockData($stock,$dayTime,$name,$value);	
-    			}
-    			else if($strategy=='kdj金叉')
-    			{
-	    			$name = 'kdj_gc';
-	    			$value = 1;
-	    			//print_r($info);
-	    			$this->updateStockData($stock,$dayTime,$name,$value);	
-    			}
-    			else if($strategy=='macd金叉')
-    			{
-	    			$name = 'macd_gc';
-	    			$value = 1;
-	    			//print_r($info);
-	    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    			switch ($strategy) {
+    				case 'boll突破中轨':
+    					// 0
+		    			$name = 'boll_break_through';
+		    			$value = 1;
+		    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    					break;
+    				case 'kdj金叉':
+    					// 1
+		    			$name = 'kdj_gc';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
+    					break;
+    				case 'macd金叉':
+	    				//2
+		    			$name = 'macd_gc';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    					break;
+    				case 'macd买入信号':
+	    				//3
+		    			$name = 'macd_buy_signal';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    					break;
+    				case 'cci买入信号':
+	    				//4
+		    			$name = 'cci_buy_signal';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    					break;
+    				case 'bias买入信号':
+	    				//5
+		    			$name = 'bias_buy_signal';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    					break;
+    				case 'w&r超卖':
+	    				//6
+		    			$name = 'wr_oversold';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    					break;
+    				case 'asi(asi<30.0)':
+	    				//7
+		    			$name = 'asi';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    					break;
+    				case '创60个交易日以来新高':
+    					// 8
+    					$name = 'max_60';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);	
+    					break;
+    				case '行情收盘价上穿5日线':
+    					// 9
+    					$name = 'up_5_day';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
+    					break;
+    				case '行情收盘价上穿10日线':
+    					// 10
+    					$name = 'up_10_day';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
+    					break;
+    				case '5日线10日线20日线30日线60日线120日线多头排列':
+    					// 11
+    					$name = 'long_array';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
+    					break;
+    				case '5日线>10日线':
+    					// 12
+    					$name = '5day_gt_10day';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
+    					break;
+    				case '5日线粘合10日线':
+    					// 13
+    					$name = '5day_eq_10day';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
+    					break;
+    				case '5日线粘合20日线':
+    					// 14
+    					$name = '5day_eq_20day';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
+    					break;
+    				case '5日线上穿20日线':
+    					// 15
+    					$name = '5day_through_20day';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
+    					break;
+    				case '10日线>30日线':
+    					// 16
+    					break;
+    				case '10日线>20日线':
+    					// 17
+    					break;
+    				case '10日线上移':
+    					// 18
+    					break;
+    				case '20日线上移':
+    					// 19
+    					break;
+    				case '价升量涨':
+    					// 20
+    					break;
+    				case '换手率从大到小排名':
+    					// 21
+    					break;
+    				case '涨跌幅从大到小排名':
+    					// 22
+    					break;
+    				case '量比从大到小排名':
+    					// 23
+    					break;
+    				case 'A股流通市值从大到小排名':
+    					// 24
+    					break;
+    				case 'A股总市值从大到小排名':
+    					// 25
+    					break;
+    				case 'dde大单净额从大到小排名':
+    					// 26
+    					break;
+    				case '市盈率(pe)从大到小排名':
+    					// 27
+    					break;
+    				case '主力控盘比例从大到小排名':
+    					// 28
+    					break;
+    				default:
+    					# code...
+    					break;
     			}
     		}
     	}
