@@ -25,6 +25,13 @@ class Income extends MY_Controller {
     		$day = $row['day'];
     		$stockData[$day][$row['name']] = $row['value'];
     	}
+    	foreach($stockData as $dayTime=>$info)
+    	{
+    		if(!isset($info['opening_price'])||!isset($info['closing_price']))
+    		{
+    			unset($stockData[$dayTime]);
+    		}
+    	}
     	return $stockData;
     	//print_r($stockData);
     }
@@ -50,7 +57,7 @@ class Income extends MY_Controller {
 	        'data' => array(),
 	    );
 	    // 如果是创业板，略过
-	    if(preg_match("/^(sh|sz)3/",$code)==1||preg_match("/^3/",$code)==1)
+	    if(!$this->isStock($code))
 	    {
 	        log_message("error","code [$code] is gem board,skip it!");
 	        return;
@@ -69,14 +76,10 @@ class Income extends MY_Controller {
 	    {
 	        $stock = $this->getStockData($code); 
 	    }
-	    
-	    
-	    if(empty($stock))
-	    {
-	        return;
-	    }
+
 
 	    $matchStockData = array();
+	    $preDayData = array();
 	    foreach($stock as $key=>$value)
 	    {
 	        if($key>=$time)
@@ -84,18 +87,38 @@ class Income extends MY_Controller {
 	            $matchStockData[] = $value;
 	        }
 	    }
+	    if(empty($stock)||empty($matchStockData)||empty($stock[$time]))
+	    {
+	    	log_message("debug","no data of time is [$time], code = [$code] , skip");
+	        return;
+	    }
 	    $cnt = count($matchStockData);
 	    $first = $matchStockData[0];
-	    $dayData = $matchStockData[$day-1];
-	    $lastDayData = end($matchStockData);
-	    $last = !empty($dayData)?$dayData:$lastDayData;
+	    // if(isset($matchStockData[$day-1]))
+	    // {
+	    // 	$last =$matchStockData[$day-1];
+	    // }
+	    // else
+	    // {
+	    // 	$last = end($matchStockData);
+	    // }
 	    //print_r($first);
 	    // 开盘价
 	    $startPrice = $first['opening_price'];
 	    //开盘直接涨停的，开盘=收盘
-	    if(empty($startPrice)||$startPrice<3||$startPrice>200||$first['opening_price']==$first['closing_price'])
+	    if(empty($startPrice)||$startPrice<3||$startPrice>200)
 	    {
-	        log_message("debug","code = [$code] startPrice = closing_price skip it!");
+	        log_message("debug","time is [$time], code = [$code] startPrice=[$startPrice] is not ok, skip it!");
+	        return;
+	    }
+	    //开盘价过高的，直接略过
+	    // print_r($first['closing_price']/(1+$first['change_percent']/100));
+	    $yesterdayClosingPrice = $first['closing_price']/(1+$first['change_percent']/100);
+	    $startPercent = 100*($startPrice-$yesterdayClosingPrice)/$yesterdayClosingPrice;
+	   //log_message("debug","startPrice is too high,startPrice = [$startPrice], yesterdayClosingPrice = [$yesterdayClosingPrice], startPercent =[$startPercent], skip it",true);
+	    if($startPercent>=8)
+	    {
+	    	log_message("debug","startPrice is too high,code = [$code], startPrice = [$startPrice], yesterdayClosingPrice = [$yesterdayClosingPrice], startPercent =[$startPercent], skip it",true);
 	        return;
 	    }
 	    //$endPrice = $last[2];
@@ -172,6 +195,7 @@ class Income extends MY_Controller {
 	                $result[$dayTime][] = $ret['data']['volPercent'];                        
 	            }            
 	        }
+	        $this->checkMem();
 	    }
 
 	    $averageResult = array();
@@ -194,6 +218,7 @@ class Income extends MY_Controller {
 	            }
 
 	        }
+
 	        log_message("debug","day income of [$dayTime] result is [".json_encode($incomeList)."] and ret is [".$averageResult[$dayTime]);
 	    }
 	    $data = array(
@@ -208,6 +233,7 @@ class Income extends MY_Controller {
 
 	public function test()
 	{
+		ini_set('memory_limit', '-1');
 	    $randResult = array();
 	    $kdjResult = array();
 
@@ -215,8 +241,6 @@ class Income extends MY_Controller {
 	    // 
 	    $stockList = array();
 	    $allStock = $this->getAllStockList();
-	    // print_r($allStock);
-	    // return;
 	    //随机选股
 	    log_message("debug","start to compute randIncome");
 	    $timeSeries = $this->getMarketTimeList();
@@ -224,18 +248,19 @@ class Income extends MY_Controller {
 
 	    foreach($timeSeries as $index=>$dayTime)
 	    {
-	    	//$stockList[$dayTime] = array_slice($allStock,0,50);
 	        $stockList[$dayTime] = $allStock;
-	        if($index>1)
-	        {
-	            break;
-	        }
+	        //$stockList[$dayTime] = array_slice($allStock,0,50);
+	        // if($index>1)
+	        // {
+	        //     break;
+	        // }
 	    }
 	    //print_r($stockList);
 
 	    $smallCount = 20;
 	    $allaverageRet = $this->computeAverageIncomeByStrategy($stockList,$day,$smallCount);
-	    //print_r($allaverageRet);
+	    // print_r($allaverageRet);
+	    // return;
 	    $randResult = $allaverageRet;
 	    $allArr = array();
 	    $smallArr = array();

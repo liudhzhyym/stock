@@ -38,21 +38,37 @@ class MY_Controller extends CI_Controller {
 		return $list;
 	}
 
+	public function isStock($stock)
+	{
+		$stock = str_replace(array('sh','sz'), '', $stock);
+	    if(preg_match("/^0/",$stock)==1||preg_match("/^6/",$stock)==1)
+	    {
+	    	return true;
+	    }
+	    return false;
+	}
+
 	public function getAllStockList()
 	{
 		$list = $this->getList('stockList.conf');
 		$codeList = array();
 		foreach($list as $code)
 		{
-		    // 如果是创业板，略过
-		    if(preg_match("/^(sh|sz)3/",$code)==1||preg_match("/^3/",$code)==1)
+		    if($this->isStock($code))
 		    {
-		    	continue;
+		    	$codeList[] = $code;
 		    }
-		    $codeList[] = $code;
+		    
 		}
 		//print_r($list);
 		return $codeList;
+	}
+
+	public function checkMem()
+	{
+        $memBytes = memory_get_usage();
+        $memM = round($memBytes*1.0/(1024*1024),2);
+        log_message("debug","now mem used is [$memM]Mb");	
 	}
 
 }
