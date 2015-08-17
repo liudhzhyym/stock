@@ -56,6 +56,7 @@ class Income extends MY_Controller {
 	        'errorMsg' => 'ok',
 	        'data' => array(),
 	    );
+	    $stime=microtime(true); //获取程序开始执行的时间
 	    // 如果是创业板，略过
 	    if(!$this->isStock($code))
 	    {
@@ -115,7 +116,7 @@ class Income extends MY_Controller {
 	    // print_r($first['closing_price']/(1+$first['change_percent']/100));
 	    $yesterdayClosingPrice = $first['closing_price']/(1+$first['change_percent']/100);
 	    $startPercent = 100*($startPrice-$yesterdayClosingPrice)/$yesterdayClosingPrice;
-	   //log_message("debug","startPrice is too high,startPrice = [$startPrice], yesterdayClosingPrice = [$yesterdayClosingPrice], startPercent =[$startPercent], skip it",true);
+	   	log_message("debug","startPrice is too high,startPrice = [$startPrice], yesterdayClosingPrice = [$yesterdayClosingPrice], startPercent =[$startPercent], skip it",true);
 	    if($startPercent>=8)
 	    {
 	    	log_message("debug","startPrice is too high,code = [$code], startPrice = [$startPrice], yesterdayClosingPrice = [$yesterdayClosingPrice], startPercent =[$startPercent], skip it",true);
@@ -156,7 +157,10 @@ class Income extends MY_Controller {
 	        'volPercent' => $volPercent,
 	    );
 	    $res['data'] = $data;
-	    log_message("debug","res data is [".json_encode($res));
+	    $etime=microtime(true);//获取程序执行结束的时间  
+    	$total=$etime-$stime;   //计算差值  
+    	$runTime = round($total/100000.0,3);
+	    log_message("debug","code is [$code],time is [$time], run time is [$total],res data is [".json_encode($res),true);
 	    //echo "vol percent of [$code] at [$time] and [$day] days is [${volPercent}%],startPrice=[$startPrice] \n";
 	    //print_r($res);
 	    return $res;
