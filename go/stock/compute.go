@@ -15,6 +15,7 @@ import (
 //     "errors"
      "sort"
      "strconv"
+     "time"
 // //    "log"
 )
 
@@ -99,7 +100,9 @@ func getAllStockList() (stockList []string,err error) {
         if isStock(code) {
         	stockList = append(stockList,code)
         }
-        
+        if len(stockList) > 100 {
+            break
+        }
         //fmt.Println("Split: ", code)
     }
     if len(stockList)==0 {
@@ -150,20 +153,21 @@ func query(code string) (ret [][]string,err error){
 func checkStock(code string,time string,keepDays int) (ret map[string]string,errInfo error) {
 
 	if !isStock(code) {
-		fmt.Println( "code is not a correct code, skip it",code)
+		//fmt.Println( "code is not a correct code, skip it",code)
 		return
 	}
 
 	stockData,days,err := getStockData(code)
 	if err != nil {
-    	fmt.Println("getStockData failed , code = ", code)
+    	//fmt.Println("getStockData failed , code = ", code)
+        return
     }
     //fmt.Println("days  ", stockData)
 	// 判断是否有这一天的数据
 	first,ok := stockData[time]
 	if !ok || len(days)==0 {
         //没有这天的数据
-        fmt.Println("no data of time is "+time+", code = "+code+" , skip it")
+        //fmt.Println("no data of time is "+time+", code = "+code+" , skip it")
 	    return
 	}
 
@@ -179,7 +183,7 @@ func checkStock(code string,time string,keepDays int) (ret map[string]string,err
     // minPrice,_ := strconv.ParseFloat(first['min_price'],64)
     //startPrice = 0
     if !(startPrice>=3&&startPrice<=200) {
-        fmt.Println("time is ["+ time +"], code = [" + code + "] startPrice=["+first["opening_price"]+"] is not ok, skip it!")
+        //fmt.Println("time is ["+ time +"], code = [" + code + "] startPrice=["+first["opening_price"]+"] is not ok, skip it!")
         return
     }
 
@@ -187,7 +191,7 @@ func checkStock(code string,time string,keepDays int) (ret map[string]string,err
 	startPercent := 100*(startPrice-yesterdayClosingPrice)/yesterdayClosingPrice
 	//fmt.Println("startPrice is too high,startPrice , yesterdayClosingPrice , startPercent skip it",startPrice,yesterdayClosingPrice,startPercent);
     if startPercent>=8 {
-    	fmt.Println("startPrice is too high,code ,startPrice, yesterdayClosingPrice, startPercent, skip it",code,startPrice,yesterdayClosingPrice,startPercent)
+    	//fmt.Println("startPrice is too high,code ,startPrice, yesterdayClosingPrice, startPercent, skip it",code,startPrice,yesterdayClosingPrice,startPercent)
         return
     }
 
@@ -228,13 +232,13 @@ func checkStock(code string,time string,keepDays int) (ret map[string]string,err
             //止损
             if minPercent < stopLossPercent {
                 volPercent = stopLossPercent
-                fmt.Println("stop to loss!")
+                //fmt.Println("stop to loss!")
                 break
             }
             //止盈
             if maxPercent >= stopWinPercent {
                 volPercent = stopWinPercent
-                fmt.Println("stop to win!")
+                //fmt.Println("stop to win!")
                 break
             }
     	}
@@ -247,8 +251,10 @@ func checkStock(code string,time string,keepDays int) (ret map[string]string,err
 	return result,nil
 }
 
+
 //输入股票列表，计算每天的平均收益
 func computeAverageIncomeByStrategy(stockList map[string] []string,keepDays int) (ret map[string] float64,err error) {
+    time1 := time.Now()
 	var result map[string] []float64
 	result = make(map[string] []float64)
 	for dayTime,list := range(stockList) {
@@ -281,7 +287,66 @@ func computeAverageIncomeByStrategy(stockList map[string] []string,keepDays int)
 		return
 	}
 	fmt.Println("computeAverageIncomeByStrategy result,averageResult is  ", result,averageResult)
+    //time.Sleep(1e9)
+    time2 := time.Now()
+    fmt.Println("run time is ",time2.Sub(time1).Seconds())
 	return averageResult,nil
+}
+
+func computeAverageIncomeByStrategyMap(stockList map[string] []string,keepDays int) {
+    averageResult,_ := computeAverageIncomeByStrategy(stockList,keepDays)
+    reduce <- averageResult
+}
+
+var reduce chan map[string] float64
+
+func chanTest() {
+    var stockList map[string] []string
+    stockList = make(map[string] []string)
+    //allList,_ := getAllStockList()
+    allList,_ := getAllStockList()
+    // stockList["20150521"] = []string{"sz002577","sz000019"}
+    // stockList["20150522"] = []string{"sz002577","sz000019"}
+    // stockList["20150116"] = []string{"sz000019"}
+    stockList["20150521"] = allList
+    stockList["20150522"] = allList
+    stockList["20150116"] = allList
+    time1 := time.Now()
+    //time.Sleep(3*time.Second);
+    
+
+    fmt.Println("now time is : ", time.Now().Unix())
+    for dayTime,value := range(stockList) {
+        var tmpStockList map[string] []string
+        tmpStockList = make(map[string] []string)
+        tmpStockList[dayTime] = value
+        go computeAverageIncomeByStrategyMap(tmpStockList,10)
+    }
+
+    //stockList["20150522"] = allList
+    // go computeAverageIncomeByStrategyMap(stockList,10)
+    // go computeAverageIncomeByStrategyMap(stockList,10)
+    // fmt.Println("wait ......")
+    for dayTime,_ := range(stockList) {
+        <- reduce
+        fmt.Println("dayTime = ",dayTime)
+    }
+
+    
+    //fmt.Println("now time is : ", time.Now().Unix())
+    time2 := time.Now()
+    fmt.Println("time is ",time2.Sub(time1).Seconds())
+    for dayTime,value := range(stockList) {
+        var tmpStockList map[string] []string
+        tmpStockList = make(map[string] []string)
+        tmpStockList[dayTime] = value
+        computeAverageIncomeByStrategy(tmpStockList,10)
+    }
+    //computeAverageIncomeByStrategy(stockList,10)
+    time3 := time.Now()
+    //var dur_time time.Duration = time2.Sub(time1)
+    //var elapsed_sec float64 = dur_time.Seconds()
+    fmt.Println("time is ",time3.Sub(time2).Seconds())
 }
 
 func main() {
@@ -300,12 +365,13 @@ func main() {
     //fmt.Println( "dbRet =  ",stockData,days,err)
     //checkStock(code,"20150129",10)
     //ret,_ := checkStock(code,"20150522",10)
-    //fmt.Println("result: ", ret)
-    var stockList map[string] []string
-	stockList = make(map[string] []string)
-	stockList["20150522"] = []string{"sz002577","sz000019"}
-	stockList["20150116"] = []string{"sz000019"}
-    computeAverageIncomeByStrategy(stockList,10)
+    
+
+    reduce = make(chan map[string] float64)
+
+    chanTest()
+    //fmt.Println("now time is : ", time.Now().Unix())
+    //computeAverageIncomeByStrategy(stockList1,10)
     // getMarketTimeList()
     // getAllStockList()
     //query("sh000001")
