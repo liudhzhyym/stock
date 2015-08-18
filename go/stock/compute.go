@@ -6,8 +6,8 @@ import (
     _ "github.com/go-sql-driver/mysql"
 //    "time"
 //    "math/rand"
-//     "os"
-//     "io/ioutil"
+    "os"
+    "io/ioutil"
 //     "flag"  //命令行选项解析器
      "strings"
 //     "net/http"
@@ -72,6 +72,43 @@ func getStockData(code string) (ret map[string] map[string]string,days []string,
 	//return
 }
 
+func getMarketTimeList() (list []string,err error) {
+	_,sortKeys,err := getStockData("sh000001")
+	if err != nil {
+        fmt.Println("get getMarketTimeList of sh000001 failed")
+        return
+    }
+    fmt.Println("list is ", sortKeys)
+	return sortKeys,nil
+}
+
+func getAllStockList() (stockList []string,err error) {
+    stockListFile := "data/stock_list"
+    buf, err := ioutil.ReadFile(stockListFile)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "File Error: %s\n", err)
+        return
+    }
+    str := string(buf)
+    codeArr := strings.Split(str, "\n")
+
+    for _,code := range(codeArr) {
+        //tmpcode := code
+        //tmpcode = strings.Replace(tmpcode, "sh", "", -1)
+        //tmpcode = strings.Replace(tmpcode, "sz", "", -1)
+        if isStock(code) {
+        	stockList = append(stockList,code)
+        }
+        
+        //fmt.Println("Split: ", code)
+    }
+    if len(stockList)==0 {
+    	fmt.Println("get stockList failed")
+    	return
+    }
+    //fmt.Println("stockList: ", stockList,len(stockList))
+    return stockList,nil
+}
 
 func dbInit() (db *sql.DB,err error) {
     db, err = sql.Open("mysql", "dog:123@tcp(127.0.0.1:3306)/test?charset=utf8")
@@ -207,7 +244,44 @@ func checkStock(code string,time string,keepDays int) (ret map[string]string,err
     result["sellDay"] = sellDay
     result["volPercent"] = strconv.FormatFloat(volPercent, 'f', -1, 64)
     //fmt.Println("result: ", result)
-	return ret,nil
+	return result,nil
+}
+
+//输入股票列表，计算每天的平均收益
+func computeAverageIncomeByStrategy(stockList map[string] []string,keepDays int) (ret map[string] float64,err error) {
+	var result map[string] []float64
+	result = make(map[string] []float64)
+	for dayTime,list := range(stockList) {
+		//result[dayTime] = make([]float64)
+		for _,stock := range(list) {
+			ret,err := checkStock(stock,dayTime,keepDays)
+			if err == nil {
+				percent,_ := strconv.ParseFloat(ret["volPercent"],64)
+				result[dayTime] = append(result[dayTime],percent)
+		    	//fmt.Println("getStockData failed , code = ", code)
+		    }
+		}
+	}
+	var averageResult map[string] float64
+	averageResult = make(map[string] float64)
+	cnt := 0
+	for dayTime,percentList := range(result) {
+		sum := 0.0
+		length := len(percentList)
+		if length > 0 {
+			for _,percent := range(percentList) {
+				sum += percent
+			}
+			averageResult[dayTime] = sum/float64(length)
+		}
+		cnt++
+	}
+	if cnt==0 {
+		fmt.Println("error! get data is null,result = ", result)
+		return
+	}
+	fmt.Println("computeAverageIncomeByStrategy result,averageResult is  ", result,averageResult)
+	return averageResult,nil
 }
 
 func main() {
@@ -220,12 +294,20 @@ func main() {
     if err != nil {
         fmt.Println( "db init failed ",err)
     }
-    code := "sz002577"
+    //code := "sz002577"
     //dbRet,err := query(code)
     //stockData,days,err := getStockData(code)
     //fmt.Println( "dbRet =  ",stockData,days,err)
     //checkStock(code,"20150129",10)
-    checkStock(code,"20150522",10)
+    //ret,_ := checkStock(code,"20150522",10)
+    //fmt.Println("result: ", ret)
+    var stockList map[string] []string
+	stockList = make(map[string] []string)
+	stockList["20150522"] = []string{"sz002577","sz000019"}
+	stockList["20150116"] = []string{"sz000019"}
+    computeAverageIncomeByStrategy(stockList,10)
+    // getMarketTimeList()
+    // getAllStockList()
     //query("sh000001")
     //getStockData("sh000001")
     // ret1 := isStock("sh000001")
