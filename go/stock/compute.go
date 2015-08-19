@@ -4,6 +4,7 @@ import (
     "fmt"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
+    "github.com/bitly/go-simplejson"
 //    "time"
 //    "math/rand"
     "os"
@@ -18,6 +19,41 @@ import (
      "time"
 // //    "log"
 )
+
+// type Stock struct {  
+//     adx float64
+//     adxr float64
+//     change float64
+//     change_percent float64
+//     closing_price float64
+//     d float64
+//     dea float64
+//     di1 float64
+//     di2 float64
+//     diff float64
+//     j float64
+//     k float64
+//     lower float64
+//     macd float64
+//     max_price float64
+//     ma_10 float64
+//     ma_20 float64
+//     ma_5 float64
+//     mid float64
+//     min_price float64
+//     obv float64
+//     opening_price float64
+//     rsi_12 float64
+//     rsi_24 float64
+//     rsi_6 float64
+//     upper float64
+//     volume float64
+//     volume_ma_10 float64
+//     volume_ma_20 float64
+//     volume_ma_5 float64
+//     wr1 float64
+//     wr2 float64
+// }
 
 var mysqlDB *sql.DB;
 
@@ -35,6 +71,7 @@ func isStock(code string) (ret bool){
 //func getStockData(code string) (ret map[string] []string,length int,err error) {
 //func getStockData(db *sql.DB,code string) (ret map[string] map[string]string,err error){
 func getStockData(code string) (ret map[string] map[string]string,days []string,err error){
+    fmt.Println("getStockData is ",code)
 	dbRet,err := query(code)
 	stockData := make(map[string] map[string]string)
     var sortKeys []string
@@ -67,7 +104,6 @@ func getStockData(code string) (ret map[string] map[string]string,days []string,
 	}
 
 	sort.Strings(sortKeys)
-   
     //fmt.Println("ret = ",sortKeys)
     return stockData,sortKeys,nil
 	//return
@@ -79,7 +115,7 @@ func getMarketTimeList() (list []string,err error) {
         fmt.Println("get getMarketTimeList of sh000001 failed")
         return
     }
-    fmt.Println("list is ", sortKeys)
+    //fmt.Println("list is ", sortKeys)
 	return sortKeys,nil
 }
 
@@ -100,7 +136,7 @@ func getAllStockList() (stockList []string,err error) {
         if isStock(code) {
         	stockList = append(stockList,code)
         }
-        if len(stockList) > 100 {
+        if len(stockList) > 10000 {
             break
         }
         //fmt.Println("Split: ", code)
@@ -130,6 +166,7 @@ func dbInit() (db *sql.DB,err error) {
 func query(code string) (ret [][]string,err error){
 	sql := "select * from stock_data where stock='"+code+"'"
     rows, err := mysqlDB.Query(sql)
+    //fmt.Println("rows =  ", sql,rows)
     if err != nil {
     	fmt.Println("Query error: %s\n", err,sql)
     }
@@ -138,6 +175,7 @@ func query(code string) (ret [][]string,err error){
     for rows.Next() {
     	var temp []string
         err := rows.Scan(&stock,&day,&name,&value,&updateTime)
+        //fmt.Println("stock =  ",stock,day,name)
         if err != nil {
         	fmt.Println("Query error: %s\n", err)
         }
@@ -150,21 +188,108 @@ func query(code string) (ret [][]string,err error){
     return ret,nil
 }
 
-func checkStock(code string,time string,keepDays int) (ret map[string]string,errInfo error) {
+func queryNewStock(code string) (ret string){
+    sql := "select * from new_stock_data where stock='"+code+"'"
+    rows, err := mysqlDB.Query(sql)
+    //fmt.Println("rows =  ", sql,rows)
+    if err != nil {
+        fmt.Println("Query error: %s\n", err,sql)
+        return
+    }
+    defer rows.Close()
+    var stock,result,updateTime string
+    for rows.Next() {
+        err := rows.Scan(&stock,&result,&updateTime)
+        //fmt.Println("stock =  ",stock,day,name)
+        if err != nil {
+            fmt.Println("Query error: %s\n", err)
+            return
+        }
+        //return result
+        //fmt.Println(temp)
+    }
+    if len(result) == 0 {
+        //fmt.Println("get result is null")
+        return
+    }
+    return result
+}
+
+func getAllStockData() {
+    //code := "sh600191"
+    var stockData map[string] map[string] map[string]float64
+    stockData = make(map[string] map[string] map[string]float64)
+    allList,_ := getAllStockList()
+    timeList,_ := getMarketTimeList()
+    for _,code := range(allList) {
+        //code := "sh600191"
+        result := queryNewStock(code)
+        if len(result) == 0 {
+            //fmt.Println("get result is null")
+            continue
+        }
+        //fmt.Println( "result =  ",result,err)
+        
+
+        js, err := simplejson.NewJson([]byte(result))
+        if err != nil {
+            fmt.Println("json format error")
+            //panic("json format error")
+        }
+
+        stockData[code] = make(map[string] map[string]float64)  
+        //fmt.Println( "timeList =  ",timeList)
+        for _,dayTime := range(timeList) {
+            var dayData map[string]float64
+            dayData = make(map[string]float64)
+            s, err := js.Get(dayTime).Map()
+            if err != nil {
+                //fmt.Println("no data of ",dayTime)
+                continue
+                //return
+            }
+            for k, v := range(s) {
+                value,_ := strconv.ParseFloat(v.(string),64)
+                dayData[k] = value
+                //fmt.Println("kv is ",k,v.(string),dayData)
+                // var iv int
+                // switch v.(type) {
+                // case float64:
+                //     iv = int(v.(float64))
+                //     fmt.Println(iv)
+                // case string:
+                //     iv, _ = strconv.Atoi(v.(string))
+                //     fmt.Println(iv)
+                // }
+            }
+            //fmt.Println("dayData",dayTime,dayData)
+            stockData[code][dayTime] = dayData
+            //fmt.Println( "data =  ",s,err)
+        }
+    }
+    for stock,_ := range(stockData) {
+        fmt.Println( "dayTime =  ",stock)
+    }
+    fmt.Println( "stockData =  ",stockData["sh600191"]["20140225"])
+}
+
+func checkStock(code string,day string,keepDays int) (ret map[string]string,errInfo error) {
 
 	if !isStock(code) {
 		//fmt.Println( "code is not a correct code, skip it",code)
 		return
 	}
-
+    time1 := time.Now()
 	stockData,days,err := getStockData(code)
+    time2 := time.Now()
+    fmt.Println("getStockData time is ",time2.Sub(time1).Seconds())
 	if err != nil {
     	//fmt.Println("getStockData failed , code = ", code)
         return
     }
     //fmt.Println("days  ", stockData)
 	// 判断是否有这一天的数据
-	first,ok := stockData[time]
+	first,ok := stockData[day]
 	if !ok || len(days)==0 {
         //没有这天的数据
         //fmt.Println("no data of time is "+time+", code = "+code+" , skip it")
@@ -207,7 +332,7 @@ func checkStock(code string,time string,keepDays int) (ret map[string]string,err
     index := 0
     result := make(map[string]string)
     for _,dayTime := range(days) {
-    	if dayTime > time {
+    	if dayTime > day {
             index++
             if index >= keepDays {
                 break
@@ -215,7 +340,7 @@ func checkStock(code string,time string,keepDays int) (ret map[string]string,err
             lastDay = dayTime
             sellDay = dayTime
             // 开盘价
-            _startPrice,_ := strconv.ParseFloat(stockData[time]["opening_price"],64)
+            _startPrice,_ := strconv.ParseFloat(stockData[day]["opening_price"],64)
             // // 当天收盘价
             _endPrice,_ := strconv.ParseFloat(stockData[dayTime]["closing_price"],64)
             // 当天最高价 
@@ -243,11 +368,13 @@ func checkStock(code string,time string,keepDays int) (ret map[string]string,err
             }
     	}
     }
-    result["firstDay"] = time
+    result["firstDay"] = day
     result["lastDay"] = lastDay
     result["sellDay"] = sellDay
     result["volPercent"] = strconv.FormatFloat(volPercent, 'f', -1, 64)
     //fmt.Println("result: ", result)
+    time3 := time.Now()
+    fmt.Println("compute time is ",time3.Sub(time2).Seconds())
 	return result,nil
 }
 
@@ -286,7 +413,7 @@ func computeAverageIncomeByStrategy(stockList map[string] []string,keepDays int)
 		fmt.Println("error! get data is null,result = ", result)
 		return
 	}
-	fmt.Println("computeAverageIncomeByStrategy result,averageResult is  ", result,averageResult)
+	//fmt.Println("computeAverageIncomeByStrategy result,averageResult is  ", result,averageResult)
     //time.Sleep(1e9)
     time2 := time.Now()
     fmt.Println("run time is ",time2.Sub(time1).Seconds())
@@ -315,22 +442,22 @@ func chanTest() {
     //time.Sleep(3*time.Second);
     
 
-    fmt.Println("now time is : ", time.Now().Unix())
-    for dayTime,value := range(stockList) {
-        var tmpStockList map[string] []string
-        tmpStockList = make(map[string] []string)
-        tmpStockList[dayTime] = value
-        go computeAverageIncomeByStrategyMap(tmpStockList,10)
-    }
+    // fmt.Println("now time is : ", time.Now().Unix())
+    // for dayTime,value := range(stockList) {
+    //     var tmpStockList map[string] []string
+    //     tmpStockList = make(map[string] []string)
+    //     tmpStockList[dayTime] = value
+    //     go computeAverageIncomeByStrategyMap(tmpStockList,10)
+    // }
 
     //stockList["20150522"] = allList
     // go computeAverageIncomeByStrategyMap(stockList,10)
     // go computeAverageIncomeByStrategyMap(stockList,10)
     // fmt.Println("wait ......")
-    for dayTime,_ := range(stockList) {
-        <- reduce
-        fmt.Println("dayTime = ",dayTime)
-    }
+    // for dayTime,_ := range(stockList) {
+    //     <- reduce
+    //     fmt.Println("dayTime = ",dayTime)
+    // }
 
     
     //fmt.Println("now time is : ", time.Now().Unix())
@@ -359,23 +486,37 @@ func main() {
     if err != nil {
         fmt.Println( "db init failed ",err)
     }
-    //code := "sz002577"
+    getAllStockData()
     //dbRet,err := query(code)
-    //stockData,days,err := getStockData(code)
-    //fmt.Println( "dbRet =  ",stockData,days,err)
-    //checkStock(code,"20150129",10)
+    // allList,_ := getAllStockList()
+    // fmt.Println( "allList =  ",allList)
+    // //var stockData map[string] map[string] map[string]string
+    // //stockData = make(map[string] map[string] map[string]string)
+    // time0 := time.Now()
+    // for _,stock := range(allList) {
+    //     //data,_,_ := getStockData(stock)
+    //     time1 := time.Now()
+    //     getStockData(stock)
+        
+    //     time2 := time.Now()
+    //     fmt.Println("getStockData time is ",stock,time2.Sub(time0).Seconds(),time2.Sub(time1).Seconds())
+    //     //stockData[stock] = data
+    // }
+    //fmt.Println( "dbRet =  ",len(stockData))
+    //checkStock("sz002577","20150129",10)
     //ret,_ := checkStock(code,"20150522",10)
     
 
-    reduce = make(chan map[string] float64)
+    //reduce = make(chan map[string] float64)
 
-    chanTest()
+    //chanTest()
     //fmt.Println("now time is : ", time.Now().Unix())
     //computeAverageIncomeByStrategy(stockList1,10)
     // getMarketTimeList()
     // getAllStockList()
     //query("sh000001")
     //getStockData("sh000001")
+    //getStockData("sh600191")
     // ret1 := isStock("sh000001")
     // fmt.Println( "ret1 =  ",ret1)
 
