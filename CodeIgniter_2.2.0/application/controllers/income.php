@@ -116,7 +116,7 @@ class Income extends MY_Controller {
 	    // print_r($first['closing_price']/(1+$first['change_percent']/100));
 	    $yesterdayClosingPrice = $first['closing_price']/(1+$first['change_percent']/100);
 	    $startPercent = 100*($startPrice-$yesterdayClosingPrice)/$yesterdayClosingPrice;
-	   	log_message("debug","startPrice is too high,startPrice = [$startPrice], yesterdayClosingPrice = [$yesterdayClosingPrice], startPercent =[$startPercent], skip it",true);
+	   	//log_message("debug","startPrice is too high,startPrice = [$startPrice], yesterdayClosingPrice = [$yesterdayClosingPrice], startPercent =[$startPercent], skip it",true);
 	    if($startPercent>=8)
 	    {
 	    	log_message("debug","startPrice is too high,code = [$code], startPrice = [$startPrice], yesterdayClosingPrice = [$yesterdayClosingPrice], startPercent =[$startPercent], skip it",true);
@@ -234,8 +234,22 @@ class Income extends MY_Controller {
 	    return $data;
 	}
 
+	public function updateStockData($index)
+	{
+		$allStock = $this->getAllStockList();
+		$stock = $allStock[$index];
+		$ret = $this->getStockData($stock);
+		if(!empty($ret))
+		{
+			$data = array(
+				'stock' => $stock,
+				'result' => json_encode($ret),
+			);
+			$mysqlRet = $this->db->insert('new_stock_data',$data,true);
+		}
+	}
 
-	public function test()
+	public function test2()
 	{
 		ini_set('memory_limit', '-1');
 	    $randResult = array();
