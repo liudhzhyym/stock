@@ -336,7 +336,7 @@ class Stock extends CI_Controller {
 			'name' => $name,
 			'value' => $value,
 		);
-		//log_message('debug', "insert data of [$stock][$dayTime][$name][$value]");
+		log_message('debug', "insert data of [$stock][$dayTime][$name][$value]");
     	$ret = $this->db->insert('stock_data',$data,true);
     	if($ret===false)
     	{

@@ -17,7 +17,7 @@ if [ ! -f index.php ] ; then
 fi
 
 index=$1
-#for strategy in `cat application/data/strategy2load.conf`; do
+for strategy in `cat application/data/strategy2load.conf`; do
 	for day in `cat application/data/timeList.conf` ; do
 		/home/work/osp/php/bin/php index.php stock parseDataByIndexAndDay $index $day
 		#rand=$(random 3 5)
@@ -25,8 +25,8 @@ index=$1
 		#sleep $rand
 	done
 #	exit
-#	((index++))
-#done
+	((index++))
+done
 
 
 
