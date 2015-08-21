@@ -40,7 +40,7 @@ func dbInit() (db *sql.DB,err error) {
     return db,nil
 }
 
-func getAllStockList() (stockList []string,err error) {
+func getAllStockList(count int) (stockList []string,err error) {
     stockListFile := "../data/stock_list"
     buf, err := ioutil.ReadFile(stockListFile)
     if err != nil {
@@ -55,7 +55,7 @@ func getAllStockList() (stockList []string,err error) {
         if stockCheck {
             stockList = append(stockList,code)
         }
-        if len(stockList) > 10000 {
+        if count>0 && len(stockList) >= count {
             break
         }
         //fmt.Println("Split: ", code)
@@ -93,7 +93,39 @@ func query(code string) (ret [][]string,err error){
         ret = append(ret,temp)
         //fmt.Println(temp)
     }
+    if len(ret) == 0 {
+        err = errors.New("get stockData is null")
+        return
+    }
     return ret,nil
+}
+
+func queryNewStock(code string) (ret string,err error){
+    sql := "select * from new_stock_data where stock='"+code+"'"
+    rows, err := mysqlDB.Query(sql)
+    //fmt.Println("rows =  ", sql,rows)
+    if err != nil {
+        fmt.Println("Query error: %s\n", err,sql)
+        return
+    }
+    defer rows.Close()
+    var stock,result,updateTime string
+    for rows.Next() {
+        err = rows.Scan(&stock,&result,&updateTime)
+        //fmt.Println("stock =  ",stock,day,name)
+        if err != nil {
+            fmt.Println("Query error: %s\n", err)
+            return
+        }
+        //return result
+        //fmt.Println(temp)
+    }
+    if len(result) == 0 {
+        err = errors.New("get result is null")
+        //fmt.Println("get result is null")
+        return
+    }
+    return result,nil
 }
 
 
