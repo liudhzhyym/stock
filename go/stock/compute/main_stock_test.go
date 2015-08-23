@@ -257,5 +257,17 @@ func TestCheckStock(t *testing.T) {
         t.Errorf("queryNewStock [%s] data failed,want [%f],but get [%f]",codeGood,expectValue,value)
     }
 
+    var stockList map[string] []string
+    stockList = make(map[string] []string)
+    stockList["20150629"] = []string{"sz002252","sz300019"}
+    stockList["20150625"] = []string{"sz002415","sz002252"}
+
+    ret,_ := computeAverageIncomeByStrategy(stockList,10)
+    fmt.Println("ret is ", ret)
+    if abs(ret["20150625"]-2.422)>0.1 || abs(ret["20150629"]-36.884)>0.1 {
+        t.Errorf("computeAverageIncomeByStrategy check failed")
+    }
+
+    
 }
 

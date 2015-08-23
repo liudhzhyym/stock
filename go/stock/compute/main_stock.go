@@ -281,10 +281,10 @@ func checkStock(code string,day string,keepDays int) (ret map[string]string,errI
         //fmt.Println( "code is not a correct code, skip it",code)
         return nil,errors.New("code is not a correct code, skip it :"+code)
     }
-    time1 := time.Now()
+    //time1 := time.Now()
     //stockData,days,err := getStockData(code)
     stockData,days,err := getStockDataNew(code)
-    time2 := time.Now()
+    //time2 := time.Now()
     //fmt.Println("getStockData time is ",time2.Sub(time1).Seconds())
     if err != nil {
         //fmt.Println("getStockData failed , code = ", code)
@@ -388,7 +388,49 @@ func checkStock(code string,day string,keepDays int) (ret map[string]string,errI
     result["sellDay"] = sellDay
     result["volPercent"] = strconv.FormatFloat(volPercent, 'f', -1, 64)
     //fmt.Println("result: ", result)
-    time3 := time.Now()
-    fmt.Println("compute time is,total time is ",time3.Sub(time2).Seconds(),time3.Sub(time1).Seconds())
+    //time3 := time.Now()
+    //fmt.Println("compute time is,total time is ",time3.Sub(time2).Seconds(),time3.Sub(time1).Seconds())
     return result,nil
+}
+
+
+//输入股票列表，计算每天的平均收益
+func computeAverageIncomeByStrategy(stockList map[string] []string,keepDays int) (ret map[string] float64,err error) {
+    time1 := time.Now()
+    var result map[string] []float64
+    result = make(map[string] []float64)
+    for dayTime,list := range(stockList) {
+        //result[dayTime] = make([]float64)
+        for _,stock := range(list) {
+            ret,err := checkStock(stock,dayTime,keepDays)
+            if err == nil {
+                percent,_ := strconv.ParseFloat(ret["volPercent"],64)
+                result[dayTime] = append(result[dayTime],percent)
+                //fmt.Println("getStockData failed , code = ", code)
+            }
+        }
+    }
+    var averageResult map[string] float64
+    averageResult = make(map[string] float64)
+    cnt := 0
+    for dayTime,percentList := range(result) {
+        sum := 0.0
+        length := len(percentList)
+        if length > 0 {
+            for _,percent := range(percentList) {
+                sum += percent
+            }
+            averageResult[dayTime] = sum/float64(length)
+        }
+        cnt++
+    }
+    if cnt==0 {
+        //fmt.Println("error! get data is null,result = ", result)
+        return nil,errors.New("error! get data is null")
+    }
+    //fmt.Println("computeAverageIncomeByStrategy result,averageResult is  ", result,averageResult)
+    //time.Sleep(1e9)
+    time2 := time.Now()
+    fmt.Println("run time is ",time2.Sub(time1).Seconds())
+    return averageResult,nil
 }
