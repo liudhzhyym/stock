@@ -4,6 +4,8 @@ class Stock extends CI_Controller {
 
 	private $_stockDataDir;
 
+	const MIN_PAGE = 10;
+
     function __construct() 
     {
         parent::__construct();
@@ -370,6 +372,25 @@ class Stock extends CI_Controller {
     	$cnt = $query->num_rows();
     	log_message("debug","cnt is [$cnt],strategy is [$strategy],$dayTime is [$dayTime]");
     	$stockData = array();
+
+    	$allPageStrategyList = array(
+			"换手率从大到小排名",
+			"涨跌幅从大到小排名",
+			"量比从大到小排名",
+			"A股流通市值从大到小排名",
+			"A股总市值从大到小排名",
+			"市盈率(pe)从大到小排名",
+			"主力控盘比例从大到小排名",
+    	);
+    	if(in_array($strategy, $allPageStrategyList))
+    	{
+			if($cnt<self::MIN_PAGE)
+			{
+				log_message('error',"data page of [$strategy] is null,need reload!");
+			}    		
+    	}
+
+
     	foreach ($query->result_array() as $row)
     	{
     		$page = (int)$row['page'];
@@ -500,42 +521,137 @@ class Stock extends CI_Controller {
     					break;
     				case '10日线>30日线':
     					// 16
+    					$name = '10day_gt_30day';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
     					break;
     				case '10日线>20日线':
     					// 17
+    					$name = '10day_gt_20day';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
     					break;
     				case '10日线上移':
     					// 18
+    					$name = '10day_up';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
     					break;
     				case '20日线上移':
     					// 19
+    					$name = '20day_up';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
     					break;
     				case '价升量涨':
     					// 20
+    					$name = 'price_amount_up';
+		    			$value = 1;
+		    			//print_r($info);
+		    			$this->updateStockData($stock,$dayTime,$name,$value);
     					break;
     				case '换手率从大到小排名':
     					// 21
+    					$name = 'trunover_rate';
+    					$value = floatval($info[4]);
+    					if($value>0)
+    					{
+    						//print_r($info);
+    						$this->updateStockData($stock,$dayTime,$name,$value);
+    					}
+    					
     					break;
     				case '涨跌幅从大到小排名':
     					// 22
+    					$name = 'change_rate';
+    					$value = trim($info[4]);
+    					if($value!="--")
+    					{
+    						$value = floatval($value);
+    						//print_r($info);
+    						$this->updateStockData($stock,$dayTime,$name,$value);
+    					}
     					break;
     				case '量比从大到小排名':
     					// 23
+    					$name = 'volume_ratio';
+    					//print_r($info);
+    					$value = trim($info[4]);
+    					if($value!="--")
+    					{
+    						$value = floatval($value);
+    						//print_r($info);
+    						$this->updateStockData($stock,$dayTime,$name,$value);
+    					}
     					break;
     				case 'A股流通市值从大到小排名':
     					// 24
+    					// 总股本
+
+    					$name = 'total_count';
+    					$total_count =  number_format($info[8],'','','');
+    					if($total_count>0)
+    					{
+    						//$value = floatval($value);
+    						//print_r($info);
+    						$this->updateStockData($stock,$dayTime,$name,$total_count);
+    					}
+    					//流通市值
+    					$name = 'circulation_count';
+    					$value =  floatval($info[7]);
+    					$circulation_count = $value*100000000;
+    					if($circulation_count>0)
+    					{
+    						
+    						//print_r($info);
+    						$this->updateStockData($stock,$dayTime,$name,$circulation_count);
+    					}
+    					if($total_count>0&&$circulation_count>0)
+    					{
+    						$name = 'circulation_ratio';
+    						$value =  $circulation_count/$total_count;
+    						if($value<=1)
+    						{
+    							$this->updateStockData($stock,$dayTime,$name,$value);
+    						}
+    					}
     					break;
     				case 'A股总市值从大到小排名':
     					// 25
-    					break;
-    				case 'dde大单净额从大到小排名':
-    					// 26
+    					//print_r($info);
     					break;
     				case '市盈率(pe)从大到小排名':
-    					// 27
+    					// 26
+    					//市盈率
+    					$name = 'pe';
+    					$value =  floatval($info[4]);
+    					if($value>0)
+    					{
+    						$this->updateStockData($stock,$dayTime,$name,$value);
+    					}
+    					//市净率
+    					$name = 'pb';
+    					$value =  floatval($info[7]);
+    					if($value>0)
+    					{
+    						$this->updateStockData($stock,$dayTime,$name,$value);
+    					}
     					break;
     				case '主力控盘比例从大到小排名':
-    					// 28
+    					// 27
+    					$name = 'main_percent';
+    					//print_r($info);
+    					$value = trim($info[4]);
+    					if($value!="--")
+    					{
+    						$value = floatval($value);
+    						//print_r($info);
+    						$this->updateStockData($stock,$dayTime,$name,$value);
+    					}
     					break;
     				default:
     					# code...

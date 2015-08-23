@@ -17,14 +17,19 @@ if [ ! -f index.php ] ; then
 fi
 
 index=0
-for strategy in `cat application/data/strategy2load.conf`; do
+loadList="24 26 27"
+
+#return
+
+#for strategy in `cat application/data/strategy2load.conf`; do
+for index in $loadList ; do 
 	for day in `cat application/data/timeList.conf` ; do
 		/home/work/osp/php/bin/php index.php stock queryDataByIndexAndDay $index $day
 		rand=$(random 3 5)
 		echo "sleep [$rand]s"
 		sleep $rand
 	done
-	((index++))
+	#((index++))
 done
 
 
