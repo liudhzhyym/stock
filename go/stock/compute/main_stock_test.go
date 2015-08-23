@@ -158,9 +158,18 @@ func TestGetAllStockData(t *testing.T) {
         t.Errorf( "db init failed ",err)
     }
 
-    // bad
-    allList := []string{"sz0025771","sz0022521","ss6001911"}
+    allList := []string{}
     allStockData,ok := getAllStockData(allList)
+    expectCnt := 2306
+    cnt := len(allStockData)
+    if cnt!=expectCnt {
+        //fmt.Println("stockData is ", stockData[0:10])
+        t.Errorf("getAllStockData data failed,want %d,but get %d",expectCnt,cnt)
+    }
+
+    // bad
+    allList = []string{"sz0025771","sz0022521","ss6001911"}
+    allStockData,ok = getAllStockData(allList)
     //fmt.Println("stockData is ", stockData)
     if ok == nil {
         t.Errorf("getAllStockData data failed,want %s,but get %s","err",ok)
@@ -169,8 +178,8 @@ func TestGetAllStockData(t *testing.T) {
     allList = []string{"sz002577","sz002252","sh600191"}
     allStockData,_ = getAllStockData(allList)
     //fmt.Println("stockData is ", allStockData)
-    expectCnt := 3
-    cnt := len(allStockData)
+    expectCnt = 3
+    cnt = len(allStockData)
     if cnt!=expectCnt {
         //fmt.Println("stockData is ", stockData[0:10])
         t.Errorf("getAllStockData data failed,want %d,but get %d",expectCnt,cnt)

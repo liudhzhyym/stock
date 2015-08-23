@@ -197,7 +197,7 @@ func getAllStockData(stockList []string) (ret map[string] map[string] map[string
     stockData = make(map[string] map[string] map[string]float64)
     timeList,_ := getMarketTimeList("sh000001")
     if len(stockList) == 0 {
-        stockList,err = getAllStockList(10)
+        stockList,err = getAllStockList(-1)
         if err!=nil {
             return
         }
