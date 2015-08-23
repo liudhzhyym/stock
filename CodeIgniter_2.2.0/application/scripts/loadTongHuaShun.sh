@@ -18,6 +18,7 @@ fi
 
 index=$1
 for strategy in `cat application/data/strategy2load.conf`; do
+	#day="20140102"
 	for day in `cat application/data/timeList.conf` ; do
 		/home/work/osp/php/bin/php index.php stock parseDataByIndexAndDay $index $day
 		#rand=$(random 3 5)
