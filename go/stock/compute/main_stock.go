@@ -4,15 +4,18 @@ import (
     "fmt"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
+    "github.com/bitly/go-simplejson"
     "strings"
     "regexp"
     "errors"
     "os"
     "io/ioutil"
     "sort"
+    "strconv"
 )
 
 var mysqlDB *sql.DB;
+var allStockData map[string] map[string] map[string]float64
 
 func isStock(code string) (ret bool,err error){
 	code = strings.Replace(code, "sh", "", -1)
@@ -130,7 +133,7 @@ func queryNewStock(code string) (ret string,err error){
 
 
 func getStockData(code string) (ret map[string] map[string]string,days []string,err error){
-    fmt.Println("getStockData is ",code)
+    //fmt.Println("getStockData is ",code)
     stockData := make(map[string] map[string]string)
     var sortKeys []string
 
@@ -180,12 +183,92 @@ func getStockData(code string) (ret map[string] map[string]string,days []string,
 func getMarketTimeList(code string) (list []string,err error) {
     _,sortKeys,err := getStockData(code)
     if err != nil {
-        fmt.Println("get getMarketTimeList of [%s] failed",code)
+        //fmt.Println("get getMarketTimeList of [%s] failed",code)
         return
     }
     //fmt.Println("list is ", sortKeys)
     return sortKeys,nil
 }
 
+func getAllStockData(stockList []string) (ret map[string] map[string] map[string]float64,err error){
+    //code := "sh600191"
+    var stockData map[string] map[string] map[string]float64
+    stockData = make(map[string] map[string] map[string]float64)
+    timeList,_ := getMarketTimeList("sh000001")
+    if len(stockList) == 0 {
+        stockList,err = getAllStockList(10)
+        if err!=nil {
+            return
+        }
+    }
+    //allList = []string{"sz002577","sz000019","sh600191"}
+    for _,code := range(stockList) {
+        result,err1 := queryNewStock(code)
+        if err1!=nil {
+            //fmt.Println("get result is null")
+            continue
+        }
+        //fmt.Println( "result =  ",result,err)
+        
 
+        js, err1 := simplejson.NewJson([]byte(result))
+        if err1 != nil {
+            fmt.Println("json format error")
+            //panic("json format error")
+        }
 
+        stockData[code] = make(map[string] map[string]float64)  
+        //fmt.Println( "timeList =  ",timeList)
+        for _,dayTime := range(timeList) {
+            var dayData map[string]float64
+            dayData = make(map[string]float64)
+            s, err := js.Get(dayTime).Map()
+            if err != nil {
+                //fmt.Println("no data of ",dayTime)
+                continue
+                //return
+            }
+            for k, v := range(s) {
+                value,_ := strconv.ParseFloat(v.(string),64)
+                dayData[k] = value
+            }
+            //fmt.Println("dayData",dayTime,dayData)
+            stockData[code][dayTime] = dayData
+            //fmt.Println( "data =  ",s,err)
+        }
+        //break
+    }
+    if len(stockData) == 0 {
+        err = errors.New("get stockData is null")
+        return
+    }
+    // for code,data := range(stockData) {
+    //     fmt.Printf(" get stockData is : %s,len = %d", code,len(data))
+
+    //     //fmt.Println( "code , len =",code,len(data))
+    // }
+    allStockData = stockData
+    return stockData,nil
+    // for stock,_ := range(stockData) {
+    //     fmt.Println( "dayTime =  ",stock)
+    // }
+    //fmt.Println( "stockData =  ",stockData["sh600191"]["20140225"])
+}
+
+func getStockDataNew(code string) (ret map[string] map[string]float64,days []string,err error){
+    stockData := allStockData[code]
+    var sortKeys []string
+    for day,_ := range(stockData) {
+        if len(day) >0 {
+            sortKeys = append(sortKeys,day)
+        }
+    }
+    sort.Strings(sortKeys)
+    if len(sortKeys) == 0 {
+        err = errors.New("code ["+code+"] is null")
+        return
+    }
+    //fmt.Println("ret = ",sortKeys)
+    return stockData,sortKeys,nil
+    //return
+}

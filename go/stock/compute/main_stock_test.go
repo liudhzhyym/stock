@@ -138,14 +138,61 @@ func TestQueryNewStock(t *testing.T) {
     str :=  stockData[0:10]
     if str!=expectStr {
         fmt.Println("stockData is ", stockData[0:10])
-        t.Errorf("queryNewStock [%s] data failed,want %d,but get %d",codeGood,expectStr,str)
+        t.Errorf("queryNewStock [%s] data failed,want %s,but get %s",codeGood,expectStr,str)
     }
 
     stockData,ok = queryNewStock(codeBad) 
     if ok == nil {
-        t.Errorf("query [%s] data failed,want %d,but get %d",codeBad,"err",ok)
+        t.Errorf("query [%s] data failed,want %s,but get %s",codeBad,"err",ok)
     }
 
+}
+
+func TestGetAllStockData(t *testing.T) { 
+    var err error
+
+    mysqlDB,err=dbInit()
+    defer mysqlDB.Close()
+    if err != nil {
+        t.Errorf( "db init failed ",err)
+    }
+
+    // bad
+    allList := []string{"sz0025771","sz0000191","ss6001911"}
+    allStockData,ok := getAllStockData(allList)
+    //fmt.Println("stockData is ", stockData)
+    if ok == nil {
+        t.Errorf("getAllStockData data failed,want %s,but get %s","err",ok)
+    }
+
+    allList = []string{"sz002577","sz000019","sh600191"}
+    allStockData,_ = getAllStockData(allList)
+    //fmt.Println("stockData is ", allStockData)
+    expectCnt := 3
+    cnt := len(allStockData)
+    if cnt!=expectCnt {
+        //fmt.Println("stockData is ", stockData[0:10])
+        t.Errorf("getAllStockData data failed,want %d,but get %d",expectCnt,cnt)
+    }
+
+    codeGood := "sz002577"
+    codeBad := "ss0001" 
+    _,_,err = getStockDataNew(codeBad) 
+    if err == nil {
+        t.Errorf("queryNewStock [%s] data failed,want %s,but get %s",codeBad,"err",err)
+    }
+
+    stockData,_,err1 := getStockDataNew(codeGood) 
+    //fmt.Println("stockData is ", stockData["20140102"])
+
+    if err1 != nil {
+        t.Errorf("getStockDataNew [%s] data failed,want %s,but get %s",codeGood,nil,err1)
+    }
+    value := stockData["20140102"]["max_price"]
+    expectValue := 16.97
+    if value != expectValue {
+        t.Errorf("queryNewStock [%s] data failed,want [%f],but get [%f]",codeGood,expectValue,value)
+    }
 }
 
 
