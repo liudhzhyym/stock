@@ -12,6 +12,7 @@ import (
     "io/ioutil"
     "sort"
     "strconv"
+    "time"
 )
 
 var mysqlDB *sql.DB;
@@ -271,4 +272,123 @@ func getStockDataNew(code string) (ret map[string] map[string]float64,days []str
     //fmt.Println("ret = ",sortKeys)
     return stockData,sortKeys,nil
     //return
+}
+
+func checkStock(code string,day string,keepDays int) (ret map[string]string,errInfo error) {
+
+    check,_ := isStock(code)
+    if check!=true {
+        //fmt.Println( "code is not a correct code, skip it",code)
+        return nil,errors.New("code is not a correct code, skip it :"+code)
+    }
+    time1 := time.Now()
+    //stockData,days,err := getStockData(code)
+    stockData,days,err := getStockDataNew(code)
+    time2 := time.Now()
+    //fmt.Println("getStockData time is ",time2.Sub(time1).Seconds())
+    if err != nil {
+        //fmt.Println("getStockData failed , code = ", code)
+        return nil,errors.New("getStockData failed , code = " + code)
+    }
+    //fmt.Println("days  ", stockData)
+    // 判断是否有这一天的数据
+    first,ok := stockData[day]
+    if !ok || len(days)==0 {
+        //没有这天的数据
+        //fmt.Println("no data of time is "+time+", code = "+code+" , skip it")
+        return nil,errors.New("no data of time is ["+day+"], code = ["+code+"], skip it")
+    }
+
+    //获取第一天的开盘价
+    // 开盘价
+    startPrice,_ := first["opening_price"]
+    // // 当天收盘价
+    firstEndPrice,_ := first["closing_price"]
+    firstChangePercent,_ := first["change_percent"]
+    // startPrice,_ := strconv.ParseFloat(first["opening_price"],64)
+    // // // 当天收盘价
+    // firstEndPrice,_ := strconv.ParseFloat(first["closing_price"],64)
+    // firstChangePercent,_ := strconv.ParseFloat(first["change_percent"],64)
+    // // 当天最高价 
+    // maxPrice,_ := strconv.ParseFloat(first['max_price'],64)
+    // // 当天最低价 
+    // minPrice,_ := strconv.ParseFloat(first['min_price'],64)
+    //startPrice = 0
+    if !(startPrice>=3&&startPrice<=200) {
+        //fmt.Println("time is ["+ time +"], code = [" + code + "] startPrice=["+first["opening_price"]+"] is not ok, skip it!")
+        return nil,errors.New("time is ["+ day +"], code = [" + code + "] startPrice is not ok, skip it!")
+    }
+
+    yesterdayClosingPrice := firstEndPrice/(1+firstChangePercent/100)
+    startPercent := 100*(startPrice-yesterdayClosingPrice)/yesterdayClosingPrice
+    //fmt.Println("startPrice is too high,startPrice , yesterdayClosingPrice , startPercent:",startPrice,yesterdayClosingPrice,startPercent);
+    if startPercent>=8 {
+        //fmt.Println("startPrice is too high,code ,startPrice, yesterdayClosingPrice, startPercent, skip it",code,startPrice,yesterdayClosingPrice,startPercent)
+        return nil,errors.New("startPrice is too high, skip it")
+    }
+
+    stopLossPercent := -9.9
+    stopWinPercent := 100.0
+    //最后一天的时间
+    lastDay := ""
+    //止损、止盈的时间
+    sellDay := ""
+    volPercent := 0.0
+    maxPercent := 0.0
+    minPercent := 0.0
+    index := 0
+    result := make(map[string]string)
+    for _,dayTime := range(days) {
+        if dayTime > day {
+            index++
+            if index >= keepDays {
+                break
+            }
+            lastDay = dayTime
+            sellDay = dayTime
+            // 开盘价
+            _startPrice,_ := stockData[day]["opening_price"]
+            // // 当天收盘价
+            _endPrice,_ := stockData[dayTime]["closing_price"]
+            // 当天最高价 
+            _maxPrice,_ := stockData[dayTime]["max_price"]
+            // 当天最低价 
+            _minPrice,_ := stockData[dayTime]["min_price"]
+            
+            // _startPrice,_ := strconv.ParseFloat(stockData[day]["opening_price"],64)
+            // // // 当天收盘价
+            // _endPrice,_ := strconv.ParseFloat(stockData[dayTime]["closing_price"],64)
+            // // 当天最高价 
+            // _maxPrice,_ := strconv.ParseFloat(stockData[dayTime]["max_price"],64)
+            // // 当天最低价 
+            // _minPrice,_ := strconv.ParseFloat(stockData[dayTime]["min_price"],64)
+
+            volPercent = 100*(_endPrice - _startPrice)/_startPrice;
+            maxPercent = 100*(_maxPrice - _startPrice)/_startPrice;
+            minPercent = 100*(_minPrice - _startPrice)/_startPrice;
+            //volPercentStr = strconv.FormatFloat(volPercent, 'f', -1, 64)
+            //fmt.Println("startPrice,endPrice,volPercent:",_startPrice, _endPrice,volPercent)
+            //止损
+            if minPercent < stopLossPercent {
+                volPercent = stopLossPercent
+                //fmt.Println("stop to loss!")
+                break
+            }
+            //止盈
+            if maxPercent >= stopWinPercent {
+                volPercent = stopWinPercent
+                //fmt.Println("stop to win!")
+                break
+            }
+        }
+    }
+    result["code"] = code
+    result["firstDay"] = day
+    result["lastDay"] = lastDay
+    result["sellDay"] = sellDay
+    result["volPercent"] = strconv.FormatFloat(volPercent, 'f', -1, 64)
+    //fmt.Println("result: ", result)
+    time3 := time.Now()
+    fmt.Println("compute time is,total time is ",time3.Sub(time2).Seconds(),time3.Sub(time1).Seconds())
+    return result,nil
 }

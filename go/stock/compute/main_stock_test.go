@@ -3,6 +3,7 @@ package main
 import (
     "testing"
     "fmt"
+    "strconv"
 )
 
 type stockTest struct {
@@ -158,14 +159,14 @@ func TestGetAllStockData(t *testing.T) {
     }
 
     // bad
-    allList := []string{"sz0025771","sz0000191","ss6001911"}
+    allList := []string{"sz0025771","sz0022521","ss6001911"}
     allStockData,ok := getAllStockData(allList)
     //fmt.Println("stockData is ", stockData)
     if ok == nil {
         t.Errorf("getAllStockData data failed,want %s,but get %s","err",ok)
     }
 
-    allList = []string{"sz002577","sz000019","sh600191"}
+    allList = []string{"sz002577","sz002252","sh600191"}
     allStockData,_ = getAllStockData(allList)
     //fmt.Println("stockData is ", allStockData)
     expectCnt := 3
@@ -195,5 +196,66 @@ func TestGetAllStockData(t *testing.T) {
     }
 }
 
+func abs(a float64) (ret float64){
+    if a>=0.0 {
+        return a
+    } else {
+        return -a
+    }
+}
 
+
+func TestCheckStock(t *testing.T) { 
+    var err error
+
+    mysqlDB,err=dbInit()
+    defer mysqlDB.Close()
+    if err != nil {
+        t.Errorf( "db init failed ",err)
+    }
+
+
+    allList := []string{"sz002577","sz002252","sh600191","sz002415"}
+    allStockData,_ = getAllStockData(allList)
+    //fmt.Println("stockData is ", allStockData)
+    expectCnt := 4
+    cnt := len(allStockData)
+    if cnt!=expectCnt {
+        //fmt.Println("stockData is ", stockData[0:10])
+        t.Errorf("getAllStockData data failed,want %d,but get %d",expectCnt,cnt)
+    }
+
+    codeGood := "sz002252"
+
+    result,err1 := checkStock(codeGood,"20150629",10) 
+    fmt.Println("stockData is ", result)
+
+    if err1 != nil {
+        t.Errorf("checkStock [%s] data failed,want %s,but get %s",codeGood,nil,err1)
+    }
+
+    value,_ := strconv.ParseFloat(result["volPercent"],64)
+    expectValue := 36.9
+    //fmt.Println("stockData is ", value-expectValue,abs(value-expectValue))
+    if abs(value-expectValue)>0.1 {
+        t.Errorf("queryNewStock [%s] data failed,want [%f],but get [%f]",codeGood,expectValue,value)
+    }
+
+    codeGood = "sz002415"
+
+    result,err1 = checkStock(codeGood,"20150625",10) 
+    fmt.Println("stockData is ", result)
+
+    if err1 != nil {
+        t.Errorf("checkStock [%s] data failed,want %s,but get %s",codeGood,nil,err1)
+    }
+
+    value,_ = strconv.ParseFloat(result["volPercent"],64)
+    expectValue = -10.0
+    //fmt.Println("stockData is ", value-expectValue,abs(value-expectValue))
+    if abs(value-expectValue)>0.1 {
+        t.Errorf("queryNewStock [%s] data failed,want [%f],but get [%f]",codeGood,expectValue,value)
+    }
+
+}
 
