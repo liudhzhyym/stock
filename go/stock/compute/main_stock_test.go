@@ -27,9 +27,7 @@ func TestNew(t *testing.T) {
     for _,v := range stockCheckTest {
     	//t.Errorf("sssfsdfs%s",v)
         ret,_ := isStock(v.stock)
-        if ret != v.ret {
-            t.Errorf("%s check,want %s,but get %s",v.stock,v.ret,ret)
-        }
+        assert.Equal(t, ret, v.ret, "ret should be equal")
     }
 }
 
@@ -37,21 +35,13 @@ func TestGetAllStockList(t *testing.T) {
     list,err := getAllStockList(-1)
     cnt := len(list)
     expectCnt := 2396
-    if err!=nil {
-        t.Errorf("getAllStockList failed")
-    }
-
-    if expectCnt!=cnt {
-        t.Errorf("getAllStockList check,want %d,but get %d",expectCnt,cnt)
-    }
+    assert.Nil(t,err,"getAllStockList ret should be nil")
+    assert.Equal(t, cnt, expectCnt, "cnt should be equal")
 
     expectCnt = 10
     list,err = getAllStockList(expectCnt)
     cnt = len(list)
-
-    if expectCnt!=cnt {
-        t.Errorf("getAllStockList check,want %d,but get %d",expectCnt,cnt)
-    }
+    assert.Equal(t, cnt, expectCnt, "cnt should be equal")
 }
 
 
@@ -61,9 +51,7 @@ func TestMain(t *testing.T) {
 
     mysqlDB,err=dbInit()
     defer mysqlDB.Close()
-    if err != nil {
-        t.Errorf( "db init failed ",err)
-    }
+    assert.Nil(t,err,"dbInit ret should be nil")
 
     // 测试query
     codeGood := "sh000001"
@@ -71,55 +59,40 @@ func TestMain(t *testing.T) {
     stockData,ok := query(codeGood)
     cnt := len(stockData)
     expectCnt := 12959 
-    if expectCnt!=cnt || ok !=nil {
-        t.Errorf("query [%s] data failed,want %d,but get %d",codeGood,expectCnt,cnt)
-    }
+    assert.Equal(t, cnt, expectCnt, "cnt should be equal")
 
     stockData,ok = query(codeBad) 
-    if ok == nil {
-        t.Errorf("query [%s] data failed,want %d,but get %d",codeBad,"err",ok)
-    }
+    assert.NotNil(t,ok,"ret should not be nil")
 
     //测试getStockData
     stockData1,days1,err1 := getStockData(codeGood)
-    if err1 != nil {
-        t.Errorf("getStockData [%s] stock data failed,want %s,but get %s",codeGood,nil,err1)
-    }
+    assert.Nil(t,err1,"ret should be nil")
 
     stockCnt := len(stockData1)
     stockCntExpect := 393
-    if stockCntExpect!=stockCnt {
-        t.Errorf("getStockData [%s] stock data failed,want %d,but get %d",codeGood,stockCntExpect,stockCnt)
-    }
+    assert.Equal(t, stockCnt, stockCntExpect, "days should be equal")
 
     firstDay := days1[0]
     dayExpect := "20140102"
-    if firstDay!=dayExpect {
-        t.Errorf("getStockData [%s] days data failed,want %d,but get %d",codeGood,dayExpect,firstDay)
-    }
+    assert.Equal(t, firstDay, dayExpect, "firstDay should be equal")
 
     // 测试getStockData false
     
     _,_,err2 := getStockData(codeBad)
-    if err2 == nil {
-        t.Errorf("getStockData [%s] stock data failed,want %s,but get %s",codeBad,nil,err2)
-    }
+    assert.NotNil(t,err2,"ret should not be nil")
 
     // 测试getMarketTimeList
     daysList,ok := getMarketTimeList(codeGood)
     daysCnt := len(daysList)
     daysExpect := 393
-    if daysCnt!=daysExpect || ok!=nil {
-        t.Errorf("getMarketTimeList [%s] failed,want %d,but get %d,ok is [%s]",codeGood,daysExpect,daysCnt,ok)
-    }
+    assert.Equal(t, daysCnt, daysExpect, "days should be equal")
+    assert.Nil(t,ok,"ret should be nil")
 
     daysList,ok = getMarketTimeList(codeBad)
     daysCnt = len(daysList)
     daysExpect = 0
-    if daysCnt!=0 || ok==nil {
-        t.Errorf("getMarketTimeList [%s] failed,want %d,but get %d,ok is [%s]",codeBad,daysExpect,daysCnt,ok)
-    }
-
+    assert.Equal(t, daysCnt, daysExpect, "days should be equal")
+    assert.NotNil(t,ok,"ret should not be nil")
 }
 
 
@@ -128,25 +101,19 @@ func TestQueryNewStock(t *testing.T) {
 
     mysqlDB,err=dbInit()
     defer mysqlDB.Close()
-    if err != nil {
-        t.Errorf( "db init failed ",err)
-    }
+    assert.Nil(t,err,"dbInit ret should be nil")
+
     // 测试query
     codeGood := "sh000001"
     codeBad := "ss0001"
     stockData,ok := queryNewStock(codeGood)
-    //fmt.Println("stockData is ", stockData[0:10])
+    fmt.Println("stockData is ", stockData[0:10])
     expectStr := "{\"20140102";
     str :=  stockData[0:10]
-    if str!=expectStr {
-        fmt.Println("stockData is ", stockData[0:10])
-        t.Errorf("queryNewStock [%s] data failed,want %s,but get %s",codeGood,expectStr,str)
-    }
+    assert.Equal(t, str, expectStr, "str should be equal")
 
     stockData,ok = queryNewStock(codeBad) 
-    if ok == nil {
-        t.Errorf("query [%s] data failed,want %s,but get %s",codeBad,"err",ok)
-    }
+    assert.NotNil(t,ok,"ret should not be nil")
 
 }
 
@@ -155,66 +122,40 @@ func TestGetAllStockData(t *testing.T) {
 
     mysqlDB,err=dbInit()
     defer mysqlDB.Close()
-    if err != nil {
-        t.Errorf( "db init failed ",err)
-    }
+    assert.Nil(t,err,"dbInit ret should be nil")
 
     //allList := []string{}
     allList := []string{"sz0025771","sz0022521","ss6001911"}
     allStockData,ok := getAllStockData(allList)
     expectCnt := 0
     cnt := len(allStockData)
-    if cnt!=expectCnt {
-        //fmt.Println("stockData is ", stockData[0:10])
-        t.Errorf("getAllStockData data failed,want %d,but get %d",expectCnt,cnt)
-    }
+    assert.Equal(t, cnt, expectCnt, "cnt should be equal")
 
     // bad
     allList = []string{"sz0025771","sz0022521","ss6001911"}
     allStockData,ok = getAllStockData(allList)
     //fmt.Println("stockData is ", stockData)
-    if ok == nil {
-        t.Errorf("getAllStockData data failed,want %s,but get %s","err",ok)
-    }
+    assert.NotNil(t,ok,"ret should not be nil")
 
     allList = []string{"sz002577","sz002252","sh600191"}
     allStockData,_ = getAllStockData(allList)
     //fmt.Println("stockData is ", allStockData)
     expectCnt = 3
     cnt = len(allStockData)
-    if cnt!=expectCnt {
-        //fmt.Println("stockData is ", stockData[0:10])
-        t.Errorf("getAllStockData data failed,want %d,but get %d",expectCnt,cnt)
-    }
+    assert.Equal(t, cnt, expectCnt, "cnt should be equal")
 
     codeGood := "sz002577"
     codeBad := "ss0001" 
     _,_,err = getStockDataNew(codeBad) 
-    if err == nil {
-        t.Errorf("queryNewStock [%s] data failed,want %s,but get %s",codeBad,"err",err)
-    }
+    assert.NotNil(t,err,"ret should not be nil")
 
     stockData,_,err1 := getStockDataNew(codeGood) 
     //fmt.Println("stockData is ", stockData["20140102"])
-
-    if err1 != nil {
-        t.Errorf("getStockDataNew [%s] data failed,want %s,but get %s",codeGood,nil,err1)
-    }
+    assert.Nil(t,err1,"ret should be nil")
     value := stockData["20140102"]["max_price"]
     expectValue := 16.97
-    if value != expectValue {
-        t.Errorf("queryNewStock [%s] data failed,want [%f],but get [%f]",codeGood,expectValue,value)
-    }
+    assert.Equal(t, value, expectValue, "queryNewStock should be equal")
 }
-
-func abs(a float64) (ret float64){
-    if a>=0.0 {
-        return a
-    } else {
-        return -a
-    }
-}
-
 
 func TestCheckStock(t *testing.T) { 
     var err error
