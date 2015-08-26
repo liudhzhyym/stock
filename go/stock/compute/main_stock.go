@@ -13,6 +13,10 @@ import (
     "sort"
     "strconv"
     "time"
+    "io"
+    "log"
+    "net/http"
+    "encoding/json"
 )
 
 var mysqlDB *sql.DB;
@@ -434,3 +438,94 @@ func computeAverageIncomeByStrategy(stockList map[string] []string,keepDays int)
     fmt.Println("run time is ",time2.Sub(time1).Seconds())
     return averageResult,nil
 }
+
+type Income struct {
+    Code   string    `json:"code"`
+    FirstDay  string   `json:"firstDay"`
+    LastDay   string    `json:"lastDay"`
+    SellDay  string   `json:"sellDay"`
+    VolPercent  string   `json:"volPercent"`
+}
+
+func helloHandler(w http.ResponseWriter, r *http.Request){
+    //io.WriteString(w, "Hello, world!")
+    r.ParseForm()  //解析参数，默认是不会解析的
+
+    stock := r.Form["stock"][0]
+    dayTime := r.Form["dayTime"][0]
+    keepDaysStr := r.Form["keepDays"][0]
+    keepDays,_ :=  strconv.Atoi(keepDaysStr)
+    result,_ := checkStock(stock,dayTime,keepDays)
+    fmt.Println("form data is ,result is ,",stock,dayTime,keepDays,result)  //这些信息是输出到服务器端的打印信息
+
+    var incomeRet Income
+
+    incomeRet.Code  = result["code"]
+    incomeRet.FirstDay  = result["firstDay"]
+    incomeRet.LastDay  = result["lastDay"]
+    incomeRet.SellDay  = result["sellDay"]
+    incomeRet.VolPercent  = result["volPercent"]
+
+    body, err := json.Marshal(incomeRet)
+    if err != nil {
+        log.Print("json encode failed ",err)
+        return
+    }
+    ret := string(body)
+    log.Print("body is ",ret)
+    io.WriteString(w, ret)
+}
+
+func httpServerInit() {
+    //fmt.Println("all stock data is ,",allStockData)
+
+    http.HandleFunc("/hello", helloHandler)
+    err := http.ListenAndServe(":8085", nil)
+    if err != nil {
+        log.Fatal("ListenAndServe: ", err.Error())
+    }
+    log.Print("allStockData length is : ", len(allStockData))
+}
+
+func httpClient(stock string,dayTime string,keepDays int) (ret string,err error) {
+    url := "http://10.38.150.14:8085/hello?stock=" + stock + "&dayTime=" + dayTime + "&keepDays="+strconv.Itoa(keepDays);
+    resp, err := http.Get(url)
+    if err != nil {
+        log.Fatal("httpClient call failed: ", err.Error())
+        // 处理错误 ...
+        return
+    }
+    //fmt.Println("httpClient url is, ret is ",url,resp)
+
+    defer resp.Body.Close()
+    body, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        // handle error
+    }
+    str := string(body)
+    fmt.Println("httpClient url is, ret is ",url,str)
+    return str,nil
+}
+
+func parseJson(jsonStr string) (ret map[string] string,err error) {
+    //jsonStr := `{"host": "http://localhost:9090","port": 9090,"analytics_file": "","static_file_version": 1,"static_dir": "E:/Project/goTest/src/","templates_dir": "E:/Project/goTest/src/templates/","serTcpSocketHost": ":12340","serTcpSocketPort": 12340,"fruits": ["apple", "peach"]}`
+    //json str 转map  
+    var dat map[string] string 
+    err = json.Unmarshal([]byte(jsonStr), &dat)
+    if err != nil {  
+        log.Print("parseJson1 failed, err is ", err.Error())
+        return
+        // fmt.Println("==============json str 转map=======================")  
+        // fmt.Println(dat)  
+        // fmt.Println(dat["code"])  
+    } 
+    log.Print("parseJson1 input is , and ret is ",jsonStr,dat)
+    return dat,nil 
+}
+
+// func main() {
+//     //httpServerInit()
+//     result,_ := checkStock(stock,dayTime,keepDays)
+//     fmt.Println("form data is ,result is ,",stock,dayTime,keepDays,result)
+//     //httpClient("sz002252","20150629",10)
+// }
