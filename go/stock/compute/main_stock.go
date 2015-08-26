@@ -1,10 +1,11 @@
 package main
 
 import (
-    "fmt"
+    _ "fmt"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
     "github.com/bitly/go-simplejson"
+    "github.com/golang/glog"
     "strings"
     "regexp"
     "errors"
@@ -14,8 +15,8 @@ import (
     "strconv"
     "time"
     "io"
-    "log"
     "net/http"
+    "flag"
     "encoding/json"
 )
 
@@ -37,12 +38,12 @@ func isStock(code string) (ret bool,err error){
 func dbInit() (db *sql.DB,err error) {
     db, err = sql.Open("mysql", "dog:123@tcp(127.0.0.1:3306)/test?charset=utf8")
     if err != nil {
-        fmt.Println("Open database error: %s\n", err)
+        glog.Errorf("Open database error: ", err)
         return
     }
     err = db.Ping()
     if err != nil {
-        fmt.Println("Connect database error: %s\n", err)
+        glog.Errorf("Connect database error: ", err)
         return
     }
     return db,nil
@@ -52,7 +53,8 @@ func getAllStockList(count int) (stockList []string,err error) {
     stockListFile := "../data/stock_list"
     buf, err := ioutil.ReadFile(stockListFile)
     if err != nil {
-        fmt.Println(os.Stderr, "File Error: %s\n", err)
+        //glog.Infof("start ")
+        glog.Errorf("Open File Error: ",os.Stderr, err)
         return
     }
     str := string(buf)
@@ -70,7 +72,7 @@ func getAllStockList(count int) (stockList []string,err error) {
     }
     if len(stockList)==0 {
         err = errors.New("get stockList is null")
-        //fmt.Println("get stockList failed")
+        glog.Errorf("get stockList is null")
         return
     }
     //fmt.Println("stockList: ", stockList,len(stockList))
@@ -83,7 +85,7 @@ func query(code string) (ret [][]string,err error){
     rows, err := mysqlDB.Query(sql)
     //fmt.Println("rows =  ", sql,rows)
     if err != nil {
-        fmt.Println("Query error: %s\n", err,sql)
+        glog.Errorf("Query error: ", err,sql)
         return
     }
     defer rows.Close()
@@ -93,7 +95,7 @@ func query(code string) (ret [][]string,err error){
         err := rows.Scan(&stock,&day,&name,&value,&updateTime)
         //fmt.Println("stock =  ",stock,day,name)
         if err != nil {
-            fmt.Println("Query error: %s\n", err)
+            glog.Errorf("Query error: ", err)
         }
         temp = append(temp,day)
         temp = append(temp,name)
@@ -102,6 +104,7 @@ func query(code string) (ret [][]string,err error){
         //fmt.Println(temp)
     }
     if len(ret) == 0 {
+        glog.Warningf("get stockData is null")
         err = errors.New("get stockData is null")
         return
     }
@@ -113,7 +116,7 @@ func queryNewStock(code string) (ret string,err error){
     rows, err := mysqlDB.Query(sql)
     //fmt.Println("rows =  ", sql,rows)
     if err != nil {
-        fmt.Println("Query error: %s\n", err,sql)
+        glog.Errorf("Query error: ", err,sql)
         return
     }
     defer rows.Close()
@@ -122,7 +125,7 @@ func queryNewStock(code string) (ret string,err error){
         err = rows.Scan(&stock,&result,&updateTime)
         //fmt.Println("stock =  ",stock,day,name)
         if err != nil {
-            fmt.Println("Query error: %s\n", err)
+            glog.Errorf("Query error: ", err)
             return
         }
         //return result
@@ -130,7 +133,7 @@ func queryNewStock(code string) (ret string,err error){
     }
     if len(result) == 0 {
         err = errors.New("get result is null")
-        //fmt.Println("get result is null")
+        glog.Warningf("get result of [%s] is null",code)
         return
     }
     return result,nil
@@ -176,6 +179,7 @@ func getStockData(code string) (ret map[string] map[string]string,days []string,
     }
     if len(sortKeys) == 0 {
         err = errors.New("get stock data is null")
+        glog.Errorf("get stock data is null")
         return
     }
     sort.Strings(sortKeys)
@@ -188,7 +192,7 @@ func getStockData(code string) (ret map[string] map[string]string,days []string,
 func getMarketTimeList(code string) (list []string,err error) {
     _,sortKeys,err := getStockData(code)
     if err != nil {
-        //fmt.Println("get getMarketTimeList of [%s] failed",code)
+        glog.Errorf("get getMarketTimeList of [%s] failed",code)
         return
     }
     //fmt.Println("list is ", sortKeys)
@@ -210,7 +214,7 @@ func getAllStockData(stockList []string) (ret map[string] map[string] map[string
     for _,code := range(stockList) {
         result,err1 := queryNewStock(code)
         if err1!=nil {
-            //fmt.Println("get result is null")
+            glog.Warningf("get result is null")
             continue
         }
         //fmt.Println( "result =  ",result,err)
@@ -218,7 +222,7 @@ func getAllStockData(stockList []string) (ret map[string] map[string] map[string
 
         js, err1 := simplejson.NewJson([]byte(result))
         if err1 != nil {
-            fmt.Println("json format error")
+            glog.Warningf("json format error",err1)
             //panic("json format error")
         }
 
@@ -229,7 +233,7 @@ func getAllStockData(stockList []string) (ret map[string] map[string] map[string
             dayData = make(map[string]float64)
             s, err := js.Get(dayTime).Map()
             if err != nil {
-                //fmt.Println("no data of ",dayTime)
+                //glog.Warningf("no data of ",dayTime,err)
                 continue
                 //return
             }
@@ -241,17 +245,15 @@ func getAllStockData(stockList []string) (ret map[string] map[string] map[string
             stockData[code][dayTime] = dayData
             //fmt.Println( "data =  ",s,err)
         }
+        glog.Infof(" get stockData is : %s,len = %d", code,len(stockData[code]))
         //break
     }
     if len(stockData) == 0 {
         err = errors.New("get stockData is null")
+        glog.Errorf("get stockData is null")
         return
     }
-    // for code,data := range(stockData) {
-    //     fmt.Printf(" get stockData is : %s,len = %d", code,len(data))
 
-    //     //fmt.Println( "code , len =",code,len(data))
-    // }
     allStockData = stockData
     return stockData,nil
     // for stock,_ := range(stockData) {
@@ -271,6 +273,7 @@ func getStockDataNew(code string) (ret map[string] map[string]float64,days []str
     sort.Strings(sortKeys)
     if len(sortKeys) == 0 {
         err = errors.New("code ["+code+"] is null")
+        glog.Errorf("getStockDataNew failed and err is ",err)
         return
     }
     //fmt.Println("ret = ",sortKeys)
@@ -282,16 +285,16 @@ func checkStock(code string,day string,keepDays int) (ret map[string]string,errI
 
     check,_ := isStock(code)
     if check!=true {
-        //fmt.Println( "code is not a correct code, skip it",code)
+        glog.Warningf( "code is not a correct code, skip it",code)
         return nil,errors.New("code is not a correct code, skip it :"+code)
     }
-    //time1 := time.Now()
+    time1 := time.Now()
     //stockData,days,err := getStockData(code)
     stockData,days,err := getStockDataNew(code)
-    //time2 := time.Now()
+    time2 := time.Now()
     //fmt.Println("getStockData time is ",time2.Sub(time1).Seconds())
     if err != nil {
-        //fmt.Println("getStockData failed , code = ", code)
+        glog.Warningf("getStockData failed , code = ", code)
         return nil,errors.New("getStockData failed , code = " + code)
     }
     //fmt.Println("days  ", stockData)
@@ -299,7 +302,7 @@ func checkStock(code string,day string,keepDays int) (ret map[string]string,errI
     first,ok := stockData[day]
     if !ok || len(days)==0 {
         //没有这天的数据
-        //fmt.Println("no data of time is "+time+", code = "+code+" , skip it")
+        glog.Warningf("no data of time is "+day+", code = "+code+" , skip it")
         return nil,errors.New("no data of time is ["+day+"], code = ["+code+"], skip it")
     }
 
@@ -319,15 +322,16 @@ func checkStock(code string,day string,keepDays int) (ret map[string]string,errI
     // minPrice,_ := strconv.ParseFloat(first['min_price'],64)
     //startPrice = 0
     if !(startPrice>=3&&startPrice<=200) {
-        //fmt.Println("time is ["+ time +"], code = [" + code + "] startPrice=["+first["opening_price"]+"] is not ok, skip it!")
-        return nil,errors.New("time is ["+ day +"], code = [" + code + "] startPrice is not ok, skip it!")
+        msg := "time is ["+ day +"], code = [" + code + "] startPrice is not ok, skip it!" 
+        glog.Warningf(msg)
+        return nil,errors.New(msg)
     }
 
     yesterdayClosingPrice := firstEndPrice/(1+firstChangePercent/100)
     startPercent := 100*(startPrice-yesterdayClosingPrice)/yesterdayClosingPrice
     //fmt.Println("startPrice is too high,startPrice , yesterdayClosingPrice , startPercent:",startPrice,yesterdayClosingPrice,startPercent);
     if startPercent>=8 {
-        //fmt.Println("startPrice is too high,code ,startPrice, yesterdayClosingPrice, startPercent, skip it",code,startPrice,yesterdayClosingPrice,startPercent)
+        glog.Warningf("startPrice is too high,code ,startPrice, yesterdayClosingPrice, startPercent, skip it",code,startPrice,yesterdayClosingPrice,startPercent)
         return nil,errors.New("startPrice is too high, skip it")
     }
 
@@ -375,13 +379,13 @@ func checkStock(code string,day string,keepDays int) (ret map[string]string,errI
             //止损
             if minPercent < stopLossPercent {
                 volPercent = stopLossPercent
-                //fmt.Println("stop to loss!")
+                glog.Infof("stop to loss!")
                 break
             }
             //止盈
             if maxPercent >= stopWinPercent {
                 volPercent = stopWinPercent
-                //fmt.Println("stop to win!")
+                glog.Infof("stop to win!")
                 break
             }
         }
@@ -392,8 +396,8 @@ func checkStock(code string,day string,keepDays int) (ret map[string]string,errI
     result["sellDay"] = sellDay
     result["volPercent"] = strconv.FormatFloat(volPercent, 'f', -1, 64)
     //fmt.Println("result: ", result)
-    //time3 := time.Now()
-    //fmt.Println("compute time is,total time is ",time3.Sub(time2).Seconds(),time3.Sub(time1).Seconds())
+    time3 := time.Now()
+    glog.Infof("compute time is,total time is ",time3.Sub(time2).Seconds(),time3.Sub(time1).Seconds())
     return result,nil
 }
 
@@ -429,13 +433,13 @@ func computeAverageIncomeByStrategy(stockList map[string] []string,keepDays int)
         cnt++
     }
     if cnt==0 {
-        //fmt.Println("error! get data is null,result = ", result)
+        glog.Warningf("error! get data is null,result = ", result)
         return nil,errors.New("error! get data is null")
     }
     //fmt.Println("computeAverageIncomeByStrategy result,averageResult is  ", result,averageResult)
     //time.Sleep(1e9)
     time2 := time.Now()
-    fmt.Println("run time is ",time2.Sub(time1).Seconds())
+    glog.Infof("run time is ",time2.Sub(time1).Seconds())
     return averageResult,nil
 }
 
@@ -456,7 +460,7 @@ func helloHandler(w http.ResponseWriter, r *http.Request){
     keepDaysStr := r.Form["keepDays"][0]
     keepDays,_ :=  strconv.Atoi(keepDaysStr)
     result,_ := checkStock(stock,dayTime,keepDays)
-    fmt.Println("form data is ,result is ,",stock,dayTime,keepDays,result)  //这些信息是输出到服务器端的打印信息
+    glog.Infof("form data is ,result is ,",stock,dayTime,keepDays,result)  //这些信息是输出到服务器端的打印信息
 
     var incomeRet Income
 
@@ -468,42 +472,54 @@ func helloHandler(w http.ResponseWriter, r *http.Request){
 
     body, err := json.Marshal(incomeRet)
     if err != nil {
-        log.Print("json encode failed ",err)
+        glog.Errorf("json encode failed ",err)
         return
     }
     ret := string(body)
-    log.Print("body is ",ret)
+    glog.Infof("body is ",ret)
     io.WriteString(w, ret)
+}
+
+func reloadData() {
+    //allList := []string{"sz002577","sz002252","sh600191","sz002415"}
+    allList := []string{}
+    getAllStockData(allList) 
+}
+
+func reloadHandler(w http.ResponseWriter, r *http.Request){
+    reloadData()
 }
 
 func httpServerInit() {
     //fmt.Println("all stock data is ,",allStockData)
 
     http.HandleFunc("/hello", helloHandler)
+    http.HandleFunc("/reload", reloadHandler)
     err := http.ListenAndServe(":8085", nil)
     if err != nil {
-        log.Fatal("ListenAndServe: ", err.Error())
+        glog.Errorf("ListenAndServe: ", err.Error())
     }
-    log.Print("allStockData length is : ", len(allStockData))
+    glog.Infof("allStockData length is : ", len(allStockData))
 }
 
 func httpClient(stock string,dayTime string,keepDays int) (ret string,err error) {
     url := "http://10.38.150.14:8085/hello?stock=" + stock + "&dayTime=" + dayTime + "&keepDays="+strconv.Itoa(keepDays);
     resp, err := http.Get(url)
+    glog.Infof("httpClient url is, ret is ",url,resp)
     if err != nil {
-        log.Fatal("httpClient call failed: ", err.Error())
+        glog.Errorf("httpClient call failed: ", err.Error())
         // 处理错误 ...
         return
     }
-    //fmt.Println("httpClient url is, ret is ",url,resp)
-
     defer resp.Body.Close()
     body, err := ioutil.ReadAll(resp.Body)
     if err != nil {
+        glog.Errorf("httpClient call failed,err is ",err)
+        return
         // handle error
     }
     str := string(body)
-    fmt.Println("httpClient url is, ret is ",url,str)
+    glog.Infof("httpClient url is, ret is ",url,str)
     return str,nil
 }
 
@@ -513,19 +529,46 @@ func parseJson(jsonStr string) (ret map[string] string,err error) {
     var dat map[string] string 
     err = json.Unmarshal([]byte(jsonStr), &dat)
     if err != nil {  
-        log.Print("parseJson1 failed, err is ", err.Error())
+        glog.Warningf("parseJson1 failed, err is ", err.Error())
         return
-        // fmt.Println("==============json str 转map=======================")  
-        // fmt.Println(dat)  
-        // fmt.Println(dat["code"])  
     } 
-    log.Print("parseJson1 input is , and ret is ",jsonStr,dat)
+    glog.Infof("parseJson1 input is , and ret is ",jsonStr,dat)
     return dat,nil 
 }
 
-// func main() {
-//     //httpServerInit()
-//     result,_ := checkStock(stock,dayTime,keepDays)
-//     fmt.Println("form data is ,result is ,",stock,dayTime,keepDays,result)
-//     //httpClient("sz002252","20150629",10)
-// }
+
+func end() {
+    mysqlDB.Close()
+}
+
+func logFlush() {
+    for {
+        time.Sleep(1*time.Second);
+        //glog.Infof("flush log")
+        //fmt.Println("stockData is ")
+        glog.Flush()
+    }
+    
+}
+
+
+func main() {
+    flag.Parse()
+    //setFlags()
+    var err error
+    glog.Infof("start ")
+    mysqlDB,err=dbInit()
+    go logFlush()
+    //defer mysqlDB.Close()
+    defer end()
+
+    if err != nil {
+        glog.Errorf( "db init failed ",err)
+        return
+    }
+
+    reloadData()
+    
+    httpServerInit()
+}
+
