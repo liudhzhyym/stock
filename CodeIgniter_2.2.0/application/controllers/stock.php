@@ -35,7 +35,7 @@ class Stock extends CI_Controller {
 	    return $result;
 	}
 
-    private function httpCall($url, array $post = array(), array $options = array(), $timeout = 15, $retry = 2) {
+    private function httpCall($url, array $post = array(), array $options = array(), $timeout = 15, $retry = 2, $post = 0) {
 
         $res = array(
             'errorCode' => 0,
@@ -44,7 +44,7 @@ class Stock extends CI_Controller {
         );
 
         $defaults = array(
-            CURLOPT_POST => 1,
+            CURLOPT_POST => $post,
             CURLOPT_HEADER => 0,
             CURLOPT_URL => $url,
             CURLOPT_FRESH_CONNECT => 1,

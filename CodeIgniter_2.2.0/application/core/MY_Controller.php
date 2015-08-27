@@ -71,6 +71,57 @@ class MY_Controller extends CI_Controller {
         log_message("debug","now mem used is [$memM]Mb");	
 	}
 
+	public function httpCall($url, array $post = array(), array $options = array(), $timeout = 15, $retry = 2, $post = 0) {
+
+        $res = array(
+            'errorCode' => 0,
+            'errorMsg' => 'ok',
+            'data' => array(),
+        );
+
+        $defaults = array(
+            CURLOPT_POST => $post,
+            CURLOPT_HEADER => 0,
+            CURLOPT_URL => $url,
+            CURLOPT_FRESH_CONNECT => 1,
+            CURLOPT_RETURNTRANSFER => 1,
+            CURLOPT_FORBID_REUSE => 1,
+            CURLOPT_TIMEOUT => $timeout,
+        //    CURLOPT_POSTFIELDS => http_build_query($post),
+        );
+        if($post)
+        {
+        	$defaults[CURLOPT_POSTFIELDS] = http_build_query($post);
+        }
+        log_message("debug","module[stats] method[post] url[{$url}] postData=" . json_encode($post));
+
+        $try = 0;
+        for($try=0;$try<$retry;$try++)
+        {
+            $ch = curl_init();
+            curl_setopt_array($ch, $options + $defaults);
+            if (!($result = curl_exec($ch))) {
+                $res = array(
+                    'errorCode' =>  curl_errno($ch),
+                    'errorMsg' => curl_error($ch),
+                );
+                log_message("error","http talk error at [$try:$retry], curl ret is [".json_encode($res));
+                sleep(1);
+                continue;
+            }
+            curl_close($ch);
+            $res = array(
+                'errorCode' => 0,
+                'errorMsg' => 'ok',
+                'data' => $result,
+            );
+            break;
+        }
+
+        //log_message("error","httpCall ret is [".json_encode($res));
+        return $res;
+    }
+
 }
 
 /* End of file welcome.php */

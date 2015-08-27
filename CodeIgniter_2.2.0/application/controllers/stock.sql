@@ -44,4 +44,16 @@ CREATE TABLE `new_stock_data` (
     UNIQUE KEY `new_stock_data_index` (`stock`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS `income`;
+
+CREATE TABLE `income` (
+    `code` varchar(10),
+    `firstDay` varchar(10),
+    `lastDay` varchar(10),
+    `sellDay` varchar(10),
+    `keepDay` int(5),
+    `volPercent` double,
+    `update_time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+    UNIQUE KEY `income_index` (`code`,`firstDay`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

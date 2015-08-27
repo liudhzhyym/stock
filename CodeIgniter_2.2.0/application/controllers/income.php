@@ -249,6 +249,35 @@ class Income extends MY_Controller {
 		}
 	}
 
+	public function checkStockIncome($code,$time,$day)
+	{
+		$url = "http://10.38.150.14:8085/hello?stock={$code}&dayTime={$time}&keepDays={$day}";
+		$ret = $this->httpCall($url);
+		$data = json_decode($ret['data'],true);
+		$data['volPercent'] = floatval($data['volPercent']);
+		if($data['code'] == $code)
+		{
+			$data['keepDay'] = $day;
+			$mysqlRet = $this->db->insert('income',$data,true);
+	    	if($mysqlRet===false)
+	    	{
+	    		$mysql = $this->db->last_query();
+	    		log_message('error', "insert data of [$code][$dayTime] failed, mysql is [$mysql]",true);
+	    	}
+		}
+		//return $data;
+	}
+
+	public function test()
+	{
+		$code = "sz002252";
+		$dayTime = "20150629";
+		$day = 10;
+		$this->checkStockIncome($code,$dayTime,$day);
+		
+		//var_dump($ret);
+	}
+
 	public function test2()
 	{
 		ini_set('memory_limit', '-1');
