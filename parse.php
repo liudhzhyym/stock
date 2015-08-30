@@ -76,8 +76,31 @@ function writeLog($log,$print=false)
     }
 }
 
+
+function mysqlInit()
+{
+    //生成一个连接
+    $dbhost = "127.0.0.1:3306";
+    $dbdatabase = "test";
+    $username = "dog";
+    $userpass = "123";
+    $dbConnect=mysql_connect($dbhost,$username,$userpass);
+    if($dbConnect)
+    //选择一个需要操作的数据库
+    mysql_select_db($dbdatabase,$dbConnect);
+
+    //执行MySQL语句
+    $result=mysql_query("SELECT * FROM `product`");
+
+    //提取数据
+    $row=mysql_fetch_row($result);
+    print_r($row);
+}
+
 function test()
 {
+    mysqlInit();
+    return;
     //匹配
     // $code1 = getArrayFromString(file_get_contents("data/result/kdj002-1.st/20140102"));
     // $code2 = getArrayFromString(file_get_contents("data/result/kdj002-2.st/20140102"));
@@ -114,6 +137,64 @@ function test()
     //$ret = getCodeByStrategy("001.st","2015年08月07日");
     //getHistoryCodeByStrategy("001.st");
     //print_r($ret);
+    $time = "2015年08月07日";
+    $strategyStr = "${time}换手率从大到小排名；${time}涨跌幅从大到小排名；${time}量比从大到小排名；${time}A股流通市值从大到小排名；${time}A股总市值从大到小排名；";
+    $strategyStr = str_replace('${time}', $time, $strategyStr);
+    $postData = array(
+        'typed'=>1,
+        'preParams'=>'',
+        'ts'=>1,
+        'f'=>1,
+        'qs'=>1,
+        'selfsectsn'=>'',
+        'querytype'=>'',
+        'searchfilter'=>'',
+        'tid'=>'stockpick',
+        'w'=>$strategyStr,
+    );
+    $dataArr = array();
+    foreach($postData as $key=>$value)
+    {
+        $dataArr[] = "${key}=".urlencode($value);
+    }
+    $urlBase = 'http://www.iwencai.com/stockpick/search';
+    $url = $urlBase."?".implode('&',$dataArr);
+    writeLog("url = $url ");
+    // curl抓取网页
+    $htmlContent = file_get_contents($url);
+    //echo $htmlContent;
+    $rule = '/"token":"([0-9a-z]+)","staticList"/';  
+    preg_match_all($rule,$htmlContent,$result);  
+    $token = $result[1][0];
+    if(empty($token))
+    {
+        writeLog("FAILED! Get token failed!",true);
+        return;
+    }
+    writeLog("token = $token ",true);
+    $page = 1;
+    $codeInfoList = array();
+    while (true) 
+    {
+        $apiUrl = "http://www.iwencai.com/stockpick/cache?token={$token}&p={$page}&perpage=30&showType=";
+        //echo $apiUrl;
+        $apiRet = file_get_contents($apiUrl);
+        $apiData = (array)json_decode($apiRet);
+        //break;
+        if(empty($apiData['result'])||$page>100)
+        {
+            break;
+        }
+        $codeInfoList = array_merge($codeInfoList,$apiData['result']);
+        // $page++;
+        //break;
+    } 
+    print_r($codeInfoList);
+}
+
+
+function getAllStrategy()
+{
     //批量获取所有历史数据
     $strategyListStr = shell_exec("cd strategy && ls 00*");
     writeLog("get strategyList ret is [$strategyListStr]");
@@ -126,8 +207,7 @@ function test()
             //echo $fileName."\n";
             //file_put_contents("strategy/00${index}.st", $line);
         }
-    }    
-
+    }   
 }
 
 function generate()

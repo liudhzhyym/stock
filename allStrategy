@@ -7,9 +7,9 @@ ${time}涨跌幅大于2%小于5% no
 ${time}macd(macd大于0.00且小于0.20) no
 ${time}5日线>10日线 ok
 ${time}10日线>30日线 ok
-${time}a股流通市值从小到大排名
-${time}换手率从小到大排名 ok 11 
-${time}macd金叉 ok 12
+${time}a股流通市值从小到大排名 no
+${time}换手率从小到大排名 no 11 
+${time}macd金叉 ok 11
 ${time}dde大单净额大于0元 no 13
 ${time}5日线上穿20日线 ok 14
 ${time}量比大于1小于6 no
@@ -44,8 +44,8 @@ ${time}量比大于0.600小于1.100 no
 ${time}换手率大于1%小于5% no
 ${time}10日线上移 ok
 ${time}5日线>10日线 ok
-${time}macd(macd>0.2) ok
-${time}主力控盘比例大于0.450 ok
+${time}macd(macd>0.2) no
+${time}主力控盘比例大于0.450 no
 ${time}连续3天dde大单净额大于0元 no
 ${time}创60个交易日以来新高 ok
 ${time}涨跌幅大于4%小于8% no
@@ -54,4 +54,4 @@ ${time}macd买入信号 ok
 ${time}10日线上移 ok
 ${time}20日线上移 ok
 ${time}价升量涨 ok
-${time}主力控盘比例大于0.600 ok
+${time}主力控盘比例大于0.600 no
