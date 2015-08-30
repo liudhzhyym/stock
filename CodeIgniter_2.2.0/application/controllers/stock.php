@@ -1,6 +1,6 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 
-class Stock extends CI_Controller {
+class Stock extends MY_Controller {
 
 	private $_stockDataDir;
 
@@ -18,68 +18,6 @@ class Stock extends CI_Controller {
         {
         	@mkdir($this->_stockDataDir, 0777, true);
         }
-    }
-
-	private function getArrayFromString($content,$split="\n")
-	{
-	    $arr = explode($split, $content);
-	    $result = array();
-	    foreach($arr as $value)
-	    {
-	        $value = trim($value);
-	        if(!empty($value))
-	        {
-	            $result[] = $value;
-	        }
-	    }
-	    return $result;
-	}
-
-    private function httpCall($url, array $post = array(), array $options = array(), $timeout = 15, $retry = 2, $post = 0) {
-
-        $res = array(
-            'errorCode' => 0,
-            'errorMsg' => 'ok',
-            'data' => array(),
-        );
-
-        $defaults = array(
-            CURLOPT_POST => $post,
-            CURLOPT_HEADER => 0,
-            CURLOPT_URL => $url,
-            CURLOPT_FRESH_CONNECT => 1,
-            CURLOPT_RETURNTRANSFER => 1,
-            CURLOPT_FORBID_REUSE => 1,
-            CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_POSTFIELDS => http_build_query($post),
-        );
-        log_message("debug","module[stats] method[post] url[{$url}] postData=" . json_encode($post));
-
-        $try = 0;
-        for($try=0;$try<$retry;$try++)
-        {
-            $ch = curl_init();
-            curl_setopt_array($ch, $options + $defaults);
-            if (!($result = curl_exec($ch))) {
-                $res = array(
-                    'errorCode' =>  curl_errno($ch),
-                    'errorMsg' => curl_error($ch),
-                );
-                log_message("error","http talk error at [$try:$retry], curl ret is [".json_encode($res));
-                sleep(1);
-                continue;
-            }
-            curl_close($ch);
-            $res = array(
-                'errorCode' => 0,
-                'errorMsg' => 'ok',
-                'data' => $result,
-            );
-            break;
-        }
-
-        //log_message("error","httpCall ret is [".json_encode($res));
-        return $res;
     }
 
     private function queryDataFromQQ($url)
@@ -102,7 +40,7 @@ class Stock extends CI_Controller {
 		return $url_data;
     }
 
-	private function getStockData($code,$startTime=null,$endTime=null)
+	private function getStockDataFromQQ($code,$startTime=null,$endTime=null)
 	{
 	    $dir = $this->_stockDataDir;
 		$codeFile = "${dir}/${code}";
@@ -156,7 +94,7 @@ class Stock extends CI_Controller {
 		$list = $this->getAllStockList();
 		foreach($list as $code)
 		{
-			$this->getStockData($code);
+			$this->getStockDataFromQQ($code);
 		}
 		//print_r($list);
 	}
@@ -164,7 +102,7 @@ class Stock extends CI_Controller {
 	//获取上证指数的开盘时间序列
 	public function getMarketTimeList()
 	{
-	    $data = $this->getStockData("sh000001");
+	    $data = $this->getStockDataFromQQ("sh000001");
 	    $timeArr = array();
 	    foreach($data as $info)
 	    {
@@ -229,6 +167,10 @@ class Stock extends CI_Controller {
 	    $_ret = $this->httpCall($url);
 	    $htmlContent = $_ret['data'];
 	    //echo $htmlContent;
+	    //解析总股票数
+	    $totalRule = '/"total":([0-9]+)/';  
+	    preg_match_all($totalRule,$htmlContent,$result);  
+	    $total = $result[1][0];
 	    $rule = '/"token":"([0-9a-z]+)","staticList"/';  
 	    preg_match_all($rule,$htmlContent,$result);  
 	    $token = $result[1][0];
@@ -237,7 +179,21 @@ class Stock extends CI_Controller {
 	    	log_message('error', "FAILED! Get token failed!",true);
 	        return;
 	    }
-	    log_message("debug","token = $token ");
+	  	$conds = array(
+    		'strategy' => $strategy,
+    		'day' => $dayTime,
+    	);
+    	$query = $this->db->get_where('tonghuashun', $conds);
+    	$dbcnt = $query->num_rows();
+    	$nowPageCnt = ceil($total/30);
+    	log_message("debug","token = $token total = [$total], nowPageCnt = [$nowPageCnt], cnt = [$dbcnt]",true);
+    	if($nowPageCnt <= $dbcnt)
+    	{
+    		//数据是完整的，不需要再查询
+    		log_message('debug', "no need to query this data");
+    		return;
+    	}
+	    
 	    $page = 1;
 	    $codeInfoList = array();
 	    //return;
@@ -292,17 +248,11 @@ class Stock extends CI_Controller {
 		ini_set('memory_limit', '-1');
 		log_message("debug","queryDataByIndexAndDay index is [$strategyIndex] and dayTime is [$dayTime]");
 		$index = (int)$strategyIndex;
-		$strategyList = $this->getList('strategy2load.conf');
+		$strategyList = $this->getList('strategyList.conf');
 		$strategy = $strategyList[$index];
 		$this->queryByStrategyAndDay($strategy,$dayTime);
+		$this->parseDataByIndexAndDay($strategyIndex,$dayTime);
 		$this->checkMem();
-	}
-
-	private function checkMem()
-	{
-        $memBytes = memory_get_usage();
-        $memM = round($memBytes*1.0/(1024*1024),2);
-        log_message("debug","now mem used is [$memM]Mb");	
 	}
 
 	public function queryData()
@@ -360,7 +310,8 @@ class Stock extends CI_Controller {
 		ini_set('memory_limit', '-1');
 		log_message("debug","parseDataByIndexAndDay index is [$strategyIndex] and dayTime is [$dayTime]");
 		$index = (int)$strategyIndex;
-		$strategyList = $this->getList('strategy2load.conf');
+		//$strategyList = $this->getList('strategy2load.conf');
+		$strategyList = $this->getList('strategyList.conf');
 		$strategy = $strategyList[$index];
 		//$this->queryByStrategyAndDay($strategy,$dayTime);
 		//$this->checkMem();

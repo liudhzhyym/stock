@@ -54,6 +54,6 @@ CREATE TABLE `income` (
     `keepDay` int(5),
     `volPercent` double,
     `update_time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-    UNIQUE KEY `income_index` (`code`,`firstDay`)
+    UNIQUE KEY `income_index` (`code`,`firstDay`,`keepDay`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

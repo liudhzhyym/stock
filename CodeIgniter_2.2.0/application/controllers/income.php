@@ -12,42 +12,6 @@ class Income extends MY_Controller {
     }
 
 
-    public function getStockData($stock)
-    {
-    	$conds = array(
-    		'stock' => $stock,
-    	);
-    	$query = $this->db->get_where('stock_data', $conds);
-    	$cnt = $query->num_rows();
-    	$stockData = array();
-    	foreach ($query->result_array() as $row)
-    	{
-    		$day = $row['day'];
-    		$stockData[$day][$row['name']] = $row['value'];
-    	}
-    	foreach($stockData as $dayTime=>$info)
-    	{
-    		if(!isset($info['opening_price'])||!isset($info['closing_price']))
-    		{
-    			unset($stockData[$dayTime]);
-    		}
-    	}
-    	return $stockData;
-    	//print_r($stockData);
-    }
-
-	public function getMarketTimeList()
-	{
-	    $data = $this->getStockData("sh000001");
-	    $timeArr = array();
-	    foreach($data as $dayTime=>$info)
-	    {
-	        $timeArr[] = $dayTime;
-	    }
-	    sort($timeArr);
-	    //print_r($timeArr);
-	    return $timeArr;
-	}
 
 	public function checkStock($code,$time,$day)
 	{
@@ -268,12 +232,27 @@ class Income extends MY_Controller {
 		//return $data;
 	}
 
-	public function test()
+	public function getMarketTimeListForShell()
 	{
-		$code = "sz002252";
-		$dayTime = "20150629";
+		$timeSeries = $this->getMarketTimeList();
+		foreach($timeSeries as $dayTime)
+		{
+			echo $dayTime."\n";
+		}
+	}
+
+	public function checkStockIncomeByDay($dayTime,$day)
+	{
+
 		$day = 10;
-		$this->checkStockIncome($code,$dayTime,$day);
+	    $allStock = $this->getAllStockList();
+	    $timeSeries = $this->getMarketTimeList();
+	    foreach($allStock as $code)
+	    {
+    		$this->checkStockIncome($code,$dayTime,$day);
+    		$this->checkMem();
+	    }
+		
 		
 		//var_dump($ret);
 	}

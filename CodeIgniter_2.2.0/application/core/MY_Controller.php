@@ -48,6 +48,43 @@ class MY_Controller extends CI_Controller {
 	    return false;
 	}
 
+    public function getStockData($stock)
+    {
+        $conds = array(
+            'stock' => $stock,
+        );
+        $query = $this->db->get_where('stock_data', $conds);
+        $cnt = $query->num_rows();
+        $stockData = array();
+        foreach ($query->result_array() as $row)
+        {
+            $day = $row['day'];
+            $stockData[$day][$row['name']] = $row['value'];
+        }
+        foreach($stockData as $dayTime=>$info)
+        {
+            if(!isset($info['opening_price'])||!isset($info['closing_price']))
+            {
+                unset($stockData[$dayTime]);
+            }
+        }
+        return $stockData;
+        //print_r($stockData);
+    }
+
+    public function getMarketTimeList()
+    {
+        $data = $this->getStockData("sh000001");
+        $timeArr = array();
+        foreach($data as $dayTime=>$info)
+        {
+            $timeArr[] = $dayTime;
+        }
+        sort($timeArr);
+        //print_r($timeArr);
+        return $timeArr;
+    }
+
 	public function getAllStockList()
 	{
 		$list = $this->getList('stockList.conf');
