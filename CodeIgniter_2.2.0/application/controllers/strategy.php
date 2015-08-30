@@ -125,7 +125,7 @@ class Strategy extends MY_Controller {
 	    return $res;
 	}
 
-	public function getStockListByStrategy($conds)
+	public function getStockListByConds($conds)
 	{
 		$res = array(
 	        'errorCode' => 0,
@@ -147,14 +147,96 @@ class Strategy extends MY_Controller {
     	return $res;
 	}
 
-	public function index()
+	public function getCombineList()
+	{
+		$res = array(
+	        'errorCode' => 0,
+	        'errorMsg' => 'ok',
+	        'data' => array(),
+	    );
+
+		$strategyList = array(
+			'boll_break_through' => 1,
+			'kdj_gc' => 1,
+			'macd_gc' => 1,
+			'macd_buy_signal' => 1,
+			'cci_buy_signal' => 1,
+			'bias_buy_signal' => 1,
+			'wr_oversold' => 1,
+			'asi' => 1,
+			'max_60' => 1,
+			'up_5_day' => 1,
+			'up_10_day' => 1,
+			'long_array' => 1,
+			'5day_gt_10day' => 1,
+			'5day_eq_10day' => 1,
+			'5day_eq_20day' => 1,
+			'5day_through_20day' => 1,
+			'10day_gt_30day' => 1,
+			'10day_gt_20day' => 1,
+			'10day_up' => 1,
+			'20day_up' => 1,
+			'price_amount_up' => 1,
+		);
+
+		$list = array_keys($strategyList);
+		$combineList = array();
+		//单个组合
+		foreach($list as $strategyName)
+		{
+			$temp = array();
+			$temp[$strategyName] = 1;
+			$combineList[] = $temp;
+		}
+
+		//两个个组合
+		$cnt = count($list);
+		for($i=0;$i<$cnt-1;$i++)
+		{
+			for($j=$i+1;$j<$cnt;$j++)
+			{
+				$temp = array();
+				$temp[$list[$i]] = 1;
+				$temp[$list[$j]] = 1;
+				$combineList[] = $temp;
+			}
+		}
+		$res['data'] = $combineList;
+		log_message("debug","getCombineList result is [".var_export($res,true));
+		return $res;
+		//print_r($combineList);
+		//排列组合
+		// $strategy = array(
+		// 	'long_array' => 1,
+		// 	//'up_5_day' => 1,
+		// );
+		// //$this->getStockListByStrategy($strategy);
+	}
+
+	public function computeIncomeByIndex($index)
+	{
+		$ret = $this->getCombineList();
+		$strategy = $ret['data'][$index];
+		$this->getStockListByStrategy($strategy);
+	}
+
+	public function getStockListByStrategy($strategy)
 	{
 		ini_set('memory_limit', '-1');
-		$strategyName = 'long_array#up_5_day';
-		$strategy = array(
-			'long_array' => 1,
-			'up_5_day' => 1,
-		);
+		//$strategyName = 'long_array#up_5_day';
+		// $strategy = array(
+		// 	'long_array' => 1,
+		// 	'up_5_day' => 1,
+		// );
+		$strategyArr = array();
+		foreach($strategy as $name=>$value)
+		{
+			$strategyArr[] = $name."-".$value;
+		}
+		$strategyName = implode("~", $strategyArr);
+		log_message("debug","getStockListByStrategy name is [$strategyName] and strategy is [".var_export($strategy,true));
+		//echo $strategyName;
+		//return;
 		$stockList = array();
 		$timeSeries = $this->getMarketTimeList();
 		foreach($timeSeries as $index=>$dayTime)
@@ -169,7 +251,7 @@ class Strategy extends MY_Controller {
 					'name' => $name,
 					//'value' => $value,
 				);
-				$ret = $this->getStockListByStrategy($conds);
+				$ret = $this->getStockListByConds($conds);
 				//$stockList[$name] = $ret['data'];
 				if($first)
 				{
@@ -179,7 +261,7 @@ class Strategy extends MY_Controller {
 				$tempStockList = array_intersect($tempStockList,$ret['data']);
 			}		
 			$tempStockList = array_values($tempStockList);
-			log_message("debug","get stockList of [$dayTime] list is [".json_encode($tempStockList),true);
+			log_message("debug","get stockList of [$dayTime] list is [".json_encode($tempStockList));
 			$stockList[$dayTime] = $tempStockList;
 			// if($index>10)
 			// {
@@ -210,15 +292,8 @@ class Strategy extends MY_Controller {
 	    $day = 10;
 	    $allaverageRet = $this->computeAverageIncomeByStrategy($stockList,$day,$smallCount);
 	    $this->dumpResult($strategyName,$allaverageRet['data']);
-		print_r($chooseList);
-
-		// $conds = array(
-		// 	'day' => '20150513',
-		// 	'name' => 'long_array',
-		// 	'value' => 1,
-		// );
-		// $ret = $this->getStockListByStrategy($conds);
-		//print_r($stockList);
+	    $this->generate($strategyName);
+		//print_r($chooseList);
 	}
 
 	public function getDataMap($file)
@@ -238,15 +313,15 @@ class Strategy extends MY_Controller {
 		return $dataMap;
 	}
 
-	public function generate()
+	public function generate($strategyName)
 	{
 		// long_array#up_5_day
 		//$file1 = ""
 		$data = array(
 			'randAll' => $this->getDataMap($this->_resultDir."rand.st.all"),
 			'randSmall' => $this->getDataMap($this->_resultDir."rand.st.20"),
-			'longArrayAll' => $this->getDataMap($this->_resultDir."long_array#up_5_day.all"),
-			'longArraySmall' => $this->getDataMap($this->_resultDir."long_array#up_5_day.small"),
+			'strategyAll' => $this->getDataMap($this->_resultDir.$strategyName.".all"),
+			'strategySmall' => $this->getDataMap($this->_resultDir.$strategyName.".small"),
 		);
 
 		$keys = array_keys($data);
@@ -273,7 +348,8 @@ class Strategy extends MY_Controller {
 				$combineRet[] = implode(" ", $tempData);
 			}
 		}
-		print_r(implode("\n", $combineRet)."\n");
+		file_put_contents($this->_resultDir.$strategyName.".compare", implode("\n", $combineRet)."\n");
+		//print_r(implode("\n", $combineRet)."\n");
 		//print_r($combineRet);
 	}
 
