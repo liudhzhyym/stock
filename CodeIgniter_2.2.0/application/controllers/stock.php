@@ -186,11 +186,11 @@ class Stock extends MY_Controller {
     	$query = $this->db->get_where('tonghuashun', $conds);
     	$dbcnt = $query->num_rows();
     	$nowPageCnt = ceil($total/30);
-    	log_message("debug","token = $token total = [$total], nowPageCnt = [$nowPageCnt], cnt = [$dbcnt]",true);
+    	log_message("debug","token = $token total = [$total], nowPageCnt = [$nowPageCnt], cnt = [$dbcnt], [$strategy] at [$dayTime]",true);
     	if($nowPageCnt <= $dbcnt)
     	{
     		//数据是完整的，不需要再查询
-    		log_message('debug', "no need to query this data");
+    		log_message('debug', "no need to query this data,  [$strategy] at [$dayTime]");
     		return;
     	}
 	    
@@ -337,7 +337,7 @@ class Stock extends MY_Controller {
     	{
 			if($cnt<self::MIN_PAGE)
 			{
-				log_message('error',"data page of [$strategy] is null,need reload!");
+				log_message('error',"data page of [$strategy] [$strategyIndex] [$dayTime] is null,need reload!");
 			}    		
     	}
 
