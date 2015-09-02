@@ -57,3 +57,10 @@ CREATE TABLE `income` (
     UNIQUE KEY `income_index` (`code`,`firstDay`,`keepDay`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE `strategy` (
+    `id` bigint auto_increment NOT NULL,
+    `strategy` varchar(200),
+    `update_time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+    PRIMARY KEY  (`id`),
+    UNIQUE KEY `strategy_index` (`strategy`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
