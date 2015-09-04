@@ -64,3 +64,12 @@ CREATE TABLE `strategy` (
     PRIMARY KEY  (`id`),
     UNIQUE KEY `strategy_index` (`strategy`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `spss`;
+
+CREATE TABLE `spss` (
+    `strategy` varchar(200),
+    `result` mediumtext,
+    `update_time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+    UNIQUE KEY `spss_index` (`strategy`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
