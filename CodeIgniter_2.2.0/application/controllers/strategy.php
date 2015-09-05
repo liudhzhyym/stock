@@ -147,6 +147,11 @@ class Strategy extends MY_Controller {
     	return $res;
 	}
 
+	public function generateList($strategyList,$indexList)
+	{
+		
+	}
+
 	public function getCombineList()
 	{
 		$res = array(
@@ -370,7 +375,7 @@ class Strategy extends MY_Controller {
 	    file_put_contents($this->_resultDir."${name}.small", implode("\n", $smallArr)."\n");
 	}
 
-	public function test()
+	public function test3()
 	{
 		set_time_limit(-1);  
 		ini_set('memory_limit', '-1');
@@ -415,6 +420,191 @@ class Strategy extends MY_Controller {
 	    // file_put_contents($this->_resultDir."${strategyName}.all", implode("\n", $allArr)."\n");
 	    // file_put_contents($this->_resultDir."${strategyName}.${smallCount}", implode("\n", $smallArr)."\n");
 
+	}
+
+	public function getListOrderByVol($dayTime)
+	{
+		$res = array(
+	        'errorCode' => 0,
+	        'errorMsg' => 'ok',
+	        'data' => array(),
+	    );
+	    $winCount = 200;
+	    $lossCount = 200;
+		$mysql = "select * from income where firstDay='{$dayTime}' order by volPercent desc";
+		$data = $this->queryDB($mysql);
+		$list = array();
+		foreach($data as $value)
+		{
+			$list[] = $value;
+		}
+		if(!empty($list))
+		{
+			$res['data']['win'] = array_slice($list, 0, $winCount);
+			$res['data']['loss'] = array_slice($list, -$winCount);
+		}
+		//print_r($res);
+		return $res;
+		//print_r($list);
+	}
+
+	public function getKeys()
+	{
+		$mysql = "select distinct(name) from stock_data";
+		$ret = $this->queryDB($mysql);
+		$keyList = array();
+		$keyList[] = 'day';
+		foreach($ret as $value)
+		{
+			$keyList[] = $value['name'];
+		}
+		$keyList[] = 'volPercent';
+		$keyList[] = 'type';
+		//print_r($keyList);
+		return $keyList;
+		
+	}
+
+	public function getWinLossMap($day,$nextDay)
+	{
+		log_message("debug","getWinLossMap input is [$day] and nextDay is [$nextDay]");
+		$res = array(
+	        'errorCode' => 0,
+	        'errorMsg' => 'ok',
+	        'data' => array(),
+	    );
+		$_listRet = $this->getListOrderByVol($nextDay);
+		//print_r($res);
+		//return;
+		$data = array();
+		if(empty($_listRet['data']))
+		{
+			$res['errorCode'] = -1;
+			return $res;
+		}
+		foreach($_listRet['data'] as $type => $stockList)
+		{
+			foreach($stockList as $stockData)
+			{
+				$stock = $stockData['code'];
+				$vol = $stockData['volPercent'];
+				$ret = $this->getStockDataByDay($stock,$day);
+				//print_r($ret);
+				if(!empty($ret))
+				{
+					$typeValue = ($type=='win')?1:-1;
+					$ret['volPercent'] = $vol;
+					$ret['type'] = $typeValue;
+					$ret['day'] = $day;
+					$data[] = $ret;					
+				}
+				//break;
+			}
+		}
+		$dumpData = array();
+		$keys = $this->getKeys();
+		//$str = '';
+		//$str = $str . implode(" ", $keys)."\n";
+		$default = array(
+			'boll_break_through',
+			'kdj_gc',
+			'macd_gc',
+			'macd_buy_signal',
+			'cci_buy_signal',
+			'bias_buy_signal',
+			'wr_oversold',
+			'asi',
+			'max_60',
+			'up_5_day',
+			'up_10_day',
+			'long_array',
+			'5day_gt_10day',
+			'5day_eq_10day',
+			'5day_eq_20day',
+			'5day_through_20day',
+			'10day_gt_30day',
+			'10day_gt_20day',
+			'10day_up',
+			'20day_up',
+			'price_amount_up',
+			// 'trunover_rate',
+			// 'change_rate',
+			// 'volume_ratio',
+			// 'total_count',
+			// 'circulation_count',
+			// 'circulation_ratio',
+			// 'pe',
+			// 'pb',
+			// 'main_percent',
+		);
+		foreach($data as $info)
+		{
+			$temp = array();
+			foreach($keys as $key)
+			{
+				if(isset($info[$key]))
+				{
+					$temp[$key] = $info[$key];
+				}
+				else if(in_array($key, $default))
+				{
+					$temp[$key] = 0;
+				}
+				else
+				{
+					$temp[$key] = 0;
+				}
+			}
+			$dumpData[] = $temp;
+		}
+		$res['data'] = $dumpData;
+		return $res;
+		//file_put_contents("application/data/winloss.conf", $str);
+	}
+
+	public function test2()
+	{
+		$day = '20140106';
+		set_time_limit(-1);  
+		ini_set('memory_limit', '-1');
+		// $a=array("a","b","c","d","e","f");
+		// print_r(array_slice($a,0,3));
+		// print_r(array_slice($a,-3));
+		$timeSeries = $this->getMarketTimeList();
+		//print_r($time)
+		$keys = $this->getKeys();
+		$str = '';
+		$str = $str . implode(" ", $keys)."\n";
+		foreach($timeSeries as $index=>$day)
+		{
+			if($index<20||$index>100)
+			{
+				continue;
+			}
+			if(isset($timeSeries[$index+1]))
+			{
+				$nextDay = $timeSeries[$index+1];
+				$ret = $this->getWinLossMap($day,$nextDay);
+				if(!empty($ret['data']))
+				{
+					foreach($ret['data'] as $value)
+					{
+						$str = $str . implode(" ", $value)."\n";
+					}
+					
+				}
+				//print_r($str);
+				//echo $ret;
+				//break;
+			}
+			// if($index>3)
+			// {
+			// 	break;
+			// }
+			
+		}
+		file_put_contents("application/data/winloss.conf", $str);
+		//print_r($str);
 	}
 }
 

@@ -72,6 +72,23 @@ class MY_Controller extends CI_Controller {
         //print_r($stockData);
     }
 
+    public function getStockDataByDay($stock,$dayTime)
+    {
+        $conds = array(
+            'stock' => $stock,
+            'day' => $dayTime,
+        );
+        $query = $this->db->get_where('stock_data', $conds);
+        $cnt = $query->num_rows();
+        $stockData = array();
+        foreach ($query->result_array() as $row)
+        {
+            $stockData[$row['name']] = $row['value'];
+        }
+        return $stockData;
+        //print_r($stockData);
+    }
+
     public function getMarketTimeList()
     {
         $data = $this->getStockData("sh000001");
@@ -265,6 +282,19 @@ class MY_Controller extends CI_Controller {
         //  log_message("error","get code list of [$strategy] at [$dayTime] failed!");
         // }
         
+    }
+
+
+    public function queryDB($mysql)
+    {
+        $query = $this->db->query($mysql);
+        $cnt = $query->num_rows();
+        $data = array();
+        foreach ($query->result_array() as $row)
+        {
+            $data[] = $row;
+        }
+        return $data;
     }
 
 }
