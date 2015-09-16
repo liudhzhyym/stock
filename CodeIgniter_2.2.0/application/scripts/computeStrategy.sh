@@ -5,7 +5,7 @@ cd ../../
 
 
 index=0
-for i in `seq 300` ; do
+for i in `seq 1561` ; do
 	((index=i-1))
 	/home/work/osp/php/bin/php index.php strategy computeIncomeByIndex $index
 done 

@@ -95,33 +95,33 @@ class Strategy extends MY_Controller {
 
 	    $averageResult = array();
 	    $chooseResult = array();
-	    foreach($result as $dayTime=>$incomeList)
-	    {
-	        $cnt = count($incomeList);
-	        if($cnt>0)
-	        {
-	            $averageResult[$dayTime] = round(array_sum(array_values($incomeList))/$cnt,2);
-	            if($stockCount>0)
-	            {
-	                shuffle($incomeList);
-	                $chooseList = array_slice($incomeList, 0,$stockCount);
-	                $chooseResult[$dayTime] = round(array_sum(array_values($chooseList))/count($chooseList),2);
-	            }
-	            else
-	            {
-	            	$chooseResult[$dayTime] = $averageResult[$dayTime];                 
-	            }
-	        }
+	    // foreach($result as $dayTime=>$incomeList)
+	    // {
+	    //     $cnt = count($incomeList);
+	    //     if($cnt>0)
+	    //     {
+	    //         $averageResult[$dayTime] = round(array_sum(array_values($incomeList))/$cnt,2);
+	    //         if($stockCount>0)
+	    //         {
+	    //             shuffle($incomeList);
+	    //             $chooseList = array_slice($incomeList, 0,$stockCount);
+	    //             $chooseResult[$dayTime] = round(array_sum(array_values($chooseList))/count($chooseList),2);
+	    //         }
+	    //         else
+	    //         {
+	    //         	$chooseResult[$dayTime] = $averageResult[$dayTime];                 
+	    //         }
+	    //     }
 
-	        log_message("debug","day income of [$dayTime] result is [".json_encode($incomeList)."] and ret is [".$averageResult[$dayTime]);
-	    }
-	    $data = array(
-	    	'all' => $result,
-	        'averageResult' => $averageResult,
-	        'chooseResult' => $chooseResult,
-	    );
-	    $res['data'] = $data;
-	    log_message("debug","computeAverageIncomeByStrategy result is [".var_export($data,true),true);
+	    //     log_message("debug","day income of [$dayTime] result is [".json_encode($incomeList)."] and ret is [".$averageResult[$dayTime]);
+	    // }
+	    // $data = array(
+	    // 	'all' => $result,
+	    //     // 'averageResult' => $averageResult,
+	    //     // 'chooseResult' => $chooseResult,
+	    // );
+	    $res['data'] = $result;
+	    log_message("debug","computeAverageIncomeByStrategy result is [".var_export($res,true),true);
 	    return $res;
 	}
 
@@ -149,7 +149,7 @@ class Strategy extends MY_Controller {
 
 	public function generateList($strategyList,$indexList)
 	{
-		
+
 	}
 
 	public function getCombineList()
@@ -206,6 +206,20 @@ class Strategy extends MY_Controller {
 				$combineList[] = $temp;
 			}
 		}
+		for($i=0;$i<$cnt-2;$i++)
+		{
+			for($j=$i+1;$j<$cnt-1;$j++)
+			{
+				for($k=$j+1;$k<$cnt;$k++)
+				{
+					$temp = array();
+					$temp[$list[$i]] = 1;
+					$temp[$list[$j]] = 1;
+					$temp[$list[$k]] = 1;
+					$combineList[] = $temp;
+				}
+			}
+		}
 		$res['data'] = $combineList;
 		log_message("debug","getCombineList result is [".var_export($res,true));
 		return $res;
@@ -223,6 +237,44 @@ class Strategy extends MY_Controller {
 		$ret = $this->getCombineList();
 		$strategy = $ret['data'][$index];
 		$this->getStockListByStrategy($strategy);
+	}
+
+	public function sortByDayAndResult($resultList,$dayTime)
+	{
+		$count = 3;
+		//$dayTime = '20140102';
+		$stockList = array_keys($resultList);
+		$sortArr['all'] = $stockList;
+		$nameList = array('circulation_count','trunover_rate','volume_ratio');
+		foreach($nameList as $key)
+		{
+			//$key = 'circulation_count';
+			$str = implode("','", $stockList);
+			$mysql = "select stock from stock_data where day='20140102' and name='${key}' and stock in('$str') order by value desc";
+			$data = $this->queryDB($mysql);
+			$descList = array();
+			$ascList = array();
+			$allList = array();
+			foreach($data as $value)
+			{
+				$allList[] = $value['stock'];
+			}
+			//$sortArr['']
+			
+			$sortArr[$key.'-desc'] = array_slice($allList, 0, $count);
+			$sortArr[$key.'-asc'] = array_reverse(array_slice($allList, -$count));
+			$ret = array();		
+		}
+		foreach($sortArr as $type=>$list)
+		{
+			foreach($list as $stock)
+			{
+				$ret[$type][$stock] = $resultList[$stock];
+			}
+		}	
+		//print_r($ret);
+		return $ret;
+		//print_r($ret);
 	}
 
 	public function getStockListByStrategy($strategy)
@@ -268,7 +320,7 @@ class Strategy extends MY_Controller {
 			$tempStockList = array_values($tempStockList);
 			log_message("debug","get stockList of [$dayTime] list is [".json_encode($tempStockList));
 			$stockList[$dayTime] = $tempStockList;
-			// if($index>10)
+			// if($index>5)
 			// {
 			// 	break;
 			// }
@@ -296,8 +348,32 @@ class Strategy extends MY_Controller {
 	    $smallCount = 20;
 	    $day = 10;
 	    $allaverageRet = $this->computeAverageIncomeByStrategy($stockList,$day,$smallCount);
-	    $this->dumpResult($strategyName,$allaverageRet['data']);
-	    $this->generate($strategyName);
+	    $sortList = array();
+	    foreach($allaverageRet['data'] as $dayTime=>$resultList)
+	    {
+	    	$newList = $this->sortByDayAndResult($resultList,$dayTime);
+			foreach($newList as $type=>$incomeList)
+			{
+				$cnt = count($incomeList);
+				if($cnt>0)
+				{
+					$temp[$type] = array_sum(array_values($incomeList))/$cnt;
+				}
+				else
+				{
+					$temp[$type] = 0;
+				}
+			}
+			$newList['income'] = $temp;
+	    	$sortList[$dayTime] = $newList;
+	    	//$codeList = array_values($resultList);
+	    	//对股票进行排序
+	    	//break;
+	    }
+	    //print_r($sortList);
+	    //return;
+	    $this->dumpResult($strategyName,$sortList);
+	    //$this->generate($strategyName);
 		//print_r($chooseList);
 	}
 
@@ -359,20 +435,35 @@ class Strategy extends MY_Controller {
 	}
 
 
-	public function dumpResult($name,$result)
+	public function dumpResult($name,$income)
 	{
 	    $allArr = array();
 	    $smallArr = array();
-	    foreach($result['averageResult'] as $day=>$value)
-	    {
-	        $allArr[] = "$day $value";
-	    }
-	    foreach($result['chooseResult'] as $day=>$value)
-	    {
-	        $smallArr[] = "$day $value";
-	    }
-	    file_put_contents($this->_resultDir."${name}.all", implode("\n", $allArr)."\n");
-	    file_put_contents($this->_resultDir."${name}.small", implode("\n", $smallArr)."\n");
+		$randAll = $this->getDataMap($this->_resultDir."rand.st.all");
+		// print_r($randAll);
+		// return;
+
+		$timeSeries = $this->getMarketTimeList();
+		$combineRet = array();
+		foreach($timeSeries as $index=>$dayTime)
+		{
+			$flag = true;
+			$tempData = array();
+			$tempData[] = $dayTime;
+			if(isset($randAll[$dayTime])&&!empty($income[$dayTime]['income']))
+			{
+				$tempData[] = round($randAll[$dayTime],2);
+				foreach($income[$dayTime]['income'] as $value)
+				{
+					$tempData[] = round($value,2);
+				}
+				$combineRet[] = implode(" ", $tempData);
+			}
+		}
+		//print_r($combineRet);
+		file_put_contents($this->_resultDir.$name.".compare", implode("\n", $combineRet)."\n");
+	    //file_put_contents($this->_resultDir."${name}.all", implode("\n", $allArr)."\n");
+	    //file_put_contents($this->_resultDir."${name}.small", implode("\n", $smallArr)."\n");
 	}
 
 	public function test3()

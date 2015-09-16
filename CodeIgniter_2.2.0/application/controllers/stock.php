@@ -196,6 +196,54 @@ class Stock extends MY_Controller {
 		return strtolower($newCode);
 	}
 
+	public function parseDataByIndexAndDayNew($strategyIndex,$dayTime)
+	{
+		ini_set('memory_limit', '-1');
+		log_message("debug","parseDataByIndexAndDay index is [$strategyIndex] and dayTime is [$dayTime]");
+		$index = (int)$strategyIndex;
+    	$query = $this->db->get('strategy');
+    	$strategyList = array();
+    	foreach ($query->result_array() as $row)
+    	{
+    		$strategyList[$row['id']] = $row;
+    	}		
+    	$strategy = $strategyList[$strategyIndex]['strategy'];
+    	log_message("debug","strategyIndex is [$strategyIndex],strategy is [$strategy],$dayTime is [$dayTime]");
+    	if(empty($strategy))
+    	{
+    		log_message("error","get strategy from [$strategyIndex] is null",true);
+    	}
+    	$strategy = strtolower($strategy);
+    	$conds = array(
+    		'strategy' => $strategy,
+    		'day' => $dayTime,
+    	);
+    	$query = $this->db->get_where('tonghuashun', $conds);
+    	$cnt = $query->num_rows();
+    	log_message("debug","cnt is [$cnt],strategy is [$strategy],$dayTime is [$dayTime]",true);
+    	foreach ($query->result_array() as $row)
+    	{
+    		$page = (int)$row['page'];
+    		$resultArr = json_decode($row['result'],true);
+    		if(empty($resultArr['title']))
+    		{
+    			//查询到的数据为空
+    			//重新加载数据
+    			log_message("error","reload [$strategy][$dayTime] data",true);
+    			$this->queryByStrategyAndDay($strategy,$dayTime);
+    			return;
+    		}
+    		//print_r($resultArr);
+    		foreach($resultArr['result'] as $info)
+    		{
+    			$stock = $this->convertCode($info[0]);
+    			$value = 1;
+		    	$this->updateStockData($stock,$dayTime,$strategy,$value);
+    		}
+    	}
+    	//print_r($strategyList);
+	}
+
 	//处理同花顺的数据
 	public function parseDataByIndexAndDay($strategyIndex,$dayTime)
 	{
