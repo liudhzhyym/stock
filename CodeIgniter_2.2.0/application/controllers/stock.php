@@ -196,6 +196,24 @@ class Stock extends MY_Controller {
 		return strtolower($newCode);
 	}
 
+    public function queryAndParseByStrategyIndexAndDay($index,$dayTime)
+    {
+        //$name = 'macd金叉';
+        //$day = '20140102';
+        $query = $this->db->get('strategy');
+        $strategyList = array();
+        foreach ($query->result_array() as $row)
+        {
+            $strategyList[] = strtolower($row['strategy']);
+            //$stockData[$day][$row['name']] = $row['value'];
+        }
+        $strategyName = $strategyList[$index];
+        log_message("debug","getListByStrategy index is [$index],day is [$dayTime], name is [$strategyName], ret is [".var_export($strategyList,true));
+        $this->queryByStrategyAndDay($strategyName,$dayTime);
+        $this->parseDataByIndexAndDayNew($index,$dayTime);
+        $this->checkMem();
+    }
+
 	public function parseDataByIndexAndDayNew($strategyIndex,$dayTime)
 	{
 		ini_set('memory_limit', '-1');
