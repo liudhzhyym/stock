@@ -16,13 +16,13 @@ if [ ! -f index.php ] ; then
 	echo "index.php is not exist!"
 fi
 
-index=1
+index=60
 #for strategy in `cat application/data/strategy2load.conf`; do
 for i in `seq 120` ; do 
 	#day="20140102"
 	for day in `cat application/data/timeList.conf` ; do
 		#/home/work/osp/php/bin/php index.php stock parseDataByIndexAndDay $index $day
-		/home/work/osp/php/bin/php index.php stock parseDataByIndexAndDayNew $index $day
+		/home/work/osp/php/bin/php index.php stock queryAndParseByStrategyIndexAndDay $index $day
 		
 		#rand=$(random 1 2)
 		#echo "sleep [$rand]s"
@@ -31,6 +31,9 @@ for i in `seq 120` ; do
 	done
 	#exit
 	((index++))
+    if [ $index -gt 120 ]; then
+        break
+    fi
 done
 
 
