@@ -24,7 +24,15 @@ class Welcome extends CI_Controller {
 
 	public function test()
 	{
-		echo "aaaaa";
+		$this->load->library('cimongo');
+		$test_data = array(
+			'a' => 1,
+			'b' => 2
+		);
+		$this->cimongo->insert('stock_data',$test_data);
+		$query = $this->cimongo->get('stock_data');
+		print_r($query->result_array());
+		echo "aaaaa\n";
 	}
 }
 
